@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "481065112485",
+    "project_id": "finditbsu",
+    "storage_bucket": "finditbsu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481065112485:android:081272a1095276518f0e4c",
+        "android_client_info": {
+          "package_name": "com.example.finditbsu_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "481065112485-3gshigmjeooh66geubji38aj5tga6vt8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpSZYgCmeFA5UCzhmU2JgR82MExvD2dzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "481065112485-3gshigmjeooh66geubji38aj5tga6vt8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
