@@ -25,7 +25,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   String _type = 'lost';      // 'lost' or 'found'
   String? _category;          // selected category
   String? _campusLocation;    // selected campus location
-  DateTime? _date;            // date lost/found
+  DateTime _date = DateTime.now(); // default to today
   XFile? _selectedImage;      // picked image file
   Uint8List? _selectedImageBytes; // bytes for preview across all platforms
   String? _errorMessage;
@@ -76,7 +76,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date ?? now,
+      initialDate: _date,
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now,
       helpText: _type == 'lost' ? 'When did you lose it?' : 'When did you find it?',
@@ -211,14 +211,13 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    // Extra validation for fields not covered by TextFormField validators
-    if (_date == null) {
-      setState(() => _errorMessage = 'Please select the date.');
-      return;
-    }
-
     final authProvider = context.read<AuthProvider>();
     final itemProvider = context.read<ItemProvider>();
+
+    if (authProvider.currentUser == null) {
+      setState(() => _errorMessage = 'User session expired. Please log in again.');
+      return;
+    }
 
     final error = await itemProvider.reportItem(
       ownerId: authProvider.currentUser!.id,
@@ -227,7 +226,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       description: _descriptionController.text.trim(),
       category: _category!,
       location: _campusLocation!,
-      date: _date!,
+      date: _date,
       imageFile: _selectedImage,
     );
 
@@ -441,9 +440,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   }
 
   Widget _buildDatePicker(ColorScheme colorScheme) {
-    final dateText = _date != null
-        ? '${_date!.month}/${_date!.day}/${_date!.year}'
-        : 'Select date';
+    final dateText = '${_date.month}/${_date.day}/${_date.year}';
 
     return InkWell(
       onTap: _pickDate,
@@ -457,9 +454,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
         child: Text(
           dateText,
           style: TextStyle(
-            color: _date != null
-                ? colorScheme.onSurface
-                : colorScheme.onSurfaceVariant,
+            color: colorScheme.onSurface,
           ),
         ),
       ),

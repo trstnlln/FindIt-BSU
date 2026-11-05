@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/claim_model.dart';
 
 /// Handles Firestore CRUD operations for the `claims` collection.
@@ -43,11 +44,14 @@ class ClaimService {
   // ─── Streams ──────────────────────────────────────────────────────────────
 
   /// Real-time stream of all claims submitted for a specific [itemId].
-  Stream<List<ClaimModel>> getClaimsForItemStream(String itemId) {
-    return _claimsRef
-        .where('itemId', isEqualTo: itemId)
-        .snapshots()
-        .map((snapshot) {
+  /// Optionally constrained by [ownerId] to ensure matching Firestore read security rules.
+  Stream<List<ClaimModel>> getClaimsForItemStream(String itemId, {String? ownerId}) {
+    final uid = ownerId ?? FirebaseAuth.instance.currentUser?.uid;
+    Query query = _claimsRef.where('itemId', isEqualTo: itemId);
+    if (uid != null) {
+      query = query.where('ownerId', isEqualTo: uid);
+    }
+    return query.snapshots().map((snapshot) {
       final claims = snapshot.docs
           .map((doc) =>
               ClaimModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
@@ -91,6 +95,21 @@ class ClaimService {
     });
   }
 
+  /// Real-time stream of all claims submitted by a claimant across all items.
+  Stream<List<ClaimModel>> getClaimsByClaimantStream(String claimantId) {
+    return _claimsRef
+        .where('claimantId', isEqualTo: claimantId)
+        .snapshots()
+        .map((snapshot) {
+      final claims = snapshot.docs
+          .map((doc) =>
+              ClaimModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+          .toList();
+      claims.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return claims;
+    });
+  }
+
   // ─── Approval & Rejection ─────────────────────────────────────────────────
 
   /// Approves a claim:
@@ -116,17 +135,18 @@ class ClaimService {
     });
 
     // 3. Mark other pending claims for this item as rejected
-    final otherClaims = await _claimsRef
-        .where('itemId', isEqualTo: itemId)
-        .where('status', isEqualTo: 'pending')
-        .get();
+    // Single equality filter on 'itemId' to avoid requiring composite indexes in Firestore
+    final otherClaims = await _claimsRef.where('itemId', isEqualTo: itemId).get();
 
     for (final doc in otherClaims.docs) {
       if (doc.id != claimId) {
-        batch.update(doc.reference, {
-          'status': 'rejected',
-          'updatedAt': now,
-        });
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data != null && data['status'] == 'pending') {
+          batch.update(doc.reference, {
+            'status': 'rejected',
+            'updatedAt': now,
+          });
+        }
       }
     }
 

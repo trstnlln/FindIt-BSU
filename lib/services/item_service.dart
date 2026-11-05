@@ -12,13 +12,17 @@ class ItemService {
 
   /// Uploads an item image to Firebase Storage and returns its download URL.
   Future<String> uploadItemPhoto(XFile imageFile) async {
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageFile.name}';
+    final ext = imageFile.name.contains('.')
+        ? imageFile.name.split('.').last.toLowerCase()
+        : 'jpg';
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
     final ref =
         FirebaseStorage.instance.ref().child('item_photos').child(fileName);
     final bytes = await imageFile.readAsBytes();
+    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
     final uploadTask = await ref.putData(
       bytes,
-      SettableMetadata(contentType: 'image/jpeg'),
+      SettableMetadata(contentType: contentType),
     );
     return await uploadTask.ref.getDownloadURL();
   }
@@ -107,16 +111,32 @@ class ItemService {
         .toList();
   }
 
+  /// Real-time stream of items filed by a specific user, sorted newest first.
+  Stream<List<ItemModel>> getItemsByUserStream(String userId) {
+    return _itemsRef
+        .where('ownerId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      final items = snapshot.docs
+          .map((doc) =>
+              ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+          .toList();
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items;
+    });
+  }
+
   /// Returns items filed by a specific user, newest first.
   Future<List<ItemModel>> getItemsByUser(String userId) async {
     final snapshot = await _itemsRef
         .where('ownerId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .get();
-    return snapshot.docs
+    final items = snapshot.docs
         .map((doc) =>
             ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
         .toList();
+    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return items;
   }
 
   // ─── Update ───────────────────────────────────────────────────────────────
@@ -124,6 +144,12 @@ class ItemService {
   /// Updates the status of an item ('open', 'claimed', or 'returned').
   Future<void> updateItemStatus(String itemId, String status) async {
     await _itemsRef.doc(itemId).update({'status': status});
+  }
+
+  /// Deletes an item report from Firestore.
+  /// Allowed only for the item owner by Firestore security rules.
+  Future<void> deleteItem(String itemId) async {
+    await _itemsRef.doc(itemId).delete();
   }
 }
 

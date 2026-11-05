@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/claim_model.dart';
 import '../../models/item_model.dart';
@@ -144,11 +145,19 @@ class ItemDetailsScreen extends StatelessWidget {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
+
+    // Show loading spinner
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
     try {
       await itemService.updateItemStatus(item.id, 'returned');
       if (context.mounted) {
+        Navigator.of(context).pop(); // dismiss loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('"${item.title}" marked as Returned!'),
@@ -159,8 +168,69 @@ class ItemDetailsScreen extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
+        Navigator.of(context).pop(); // dismiss loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update status: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteItem(
+    BuildContext context,
+    ItemModel item,
+    ItemService itemService,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Report?'),
+        content: Text(
+          'Are you sure you want to delete "${item.title}"?\n\n'
+          'This will permanently delete this report and cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // Show loading spinner
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await itemService.deleteItem(item.id);
+      if (context.mounted) {
+        Navigator.of(context).pop(); // dismiss loading dialog
+        Navigator.of(context).pop(); // pop details screen back to feed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report for "${item.title}" deleted.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop(); // dismiss loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete report: $e')),
         );
       }
     }
@@ -179,6 +249,58 @@ class ItemDetailsScreen extends StatelessWidget {
       stream: itemService.getItemStream(item.id),
       initialData: item,
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.active &&
+            snapshot.data == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Item Removed')),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.delete_sweep_outlined,
+                        size: 36,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Report No Longer Available',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This item report has been deleted or removed.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      label: const Text('Back to Feed'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
         final currentItem = snapshot.data ?? item;
         final isLost = currentItem.type.toLowerCase() == 'lost';
         final statusColor = _getStatusColor(currentItem.status, colorScheme);
@@ -192,6 +314,34 @@ class ItemDetailsScreen extends StatelessWidget {
               isLost ? 'Lost Item Details' : 'Found Item Details',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share_outlined),
+                tooltip: 'Copy item details',
+                onPressed: () {
+                  final text = 'FindIt BSU [${currentItem.type.toUpperCase()}]\n'
+                      'Item: ${currentItem.title}\n'
+                      'Category: ${currentItem.category}\n'
+                      'Location: ${currentItem.location}\n'
+                      'Date: ${_formatDate(currentItem.date)}\n'
+                      'Description: ${currentItem.description}';
+                  Clipboard.setData(ClipboardData(text: text));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Item report details copied to clipboard!'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              if (isOwner)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  tooltip: 'Delete report',
+                  onPressed: () =>
+                      _confirmDeleteItem(context, currentItem, itemService),
+                ),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -806,7 +956,10 @@ class ItemDetailsScreen extends StatelessWidget {
 
             // Claims Review Button
             StreamBuilder<List<ClaimModel>>(
-              stream: claimService.getClaimsForItemStream(item.id),
+              stream: claimService.getClaimsForItemStream(
+                item.id,
+                ownerId: item.ownerId,
+              ),
               builder: (context, snapshot) {
                 final claims = snapshot.data ?? [];
                 final pendingCount =

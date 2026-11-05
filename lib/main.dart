@@ -72,7 +72,7 @@ class FindItApp extends StatelessWidget {
   }
 }
 
-/// Listens to [AuthProvider] and routes to [LoginScreen] or [PlaceholderHomeScreen].
+/// Listens to [AuthProvider] and routes to [LoginScreen] or [HomeScreen].
 /// Displays a loading spinner while the initial auth state is being resolved.
 class _AuthGate extends StatelessWidget {
   const _AuthGate();

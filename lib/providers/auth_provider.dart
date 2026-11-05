@@ -141,9 +141,16 @@ class AuthProvider extends ChangeNotifier {
             role: role,
           );
         } catch (_) {
-          // If Firebase is offline or restricted, create local session
+          // If Firebase login/register fail, try anonymous sign-in so Firebase Auth is valid
+          final auth = FirebaseAuth.instance;
+          UserCredential? anonCred;
+          try {
+            anonCred = await auth.signInAnonymously();
+          } catch (_) {}
+
+          final uid = anonCred?.user?.uid ?? 'demo_student_alangilan';
           _currentUser = UserModel(
-            id: 'demo_student_alangilan',
+            id: uid,
             name: 'Demo Student',
             email: demoEmail,
             role: role,

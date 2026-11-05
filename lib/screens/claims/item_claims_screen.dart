@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/claim_model.dart';
 import '../../models/item_model.dart';
 import '../../services/claim_service.dart';
@@ -160,6 +161,7 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
 
     if (confirmed != true || !mounted) return;
 
+    setState(() => _isProcessing = true);
     try {
       await _itemService.updateItemStatus(item.id, 'returned');
       if (mounted) {
@@ -177,6 +179,8 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
           SnackBar(content: Text('Failed to update status: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -201,7 +205,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
             actions: [
               if (currentItem.status.toLowerCase() != 'returned')
                 TextButton.icon(
-                  onPressed: () => _confirmMarkAsReturned(currentItem),
+                  onPressed: _isProcessing
+                      ? null
+                      : () => _confirmMarkAsReturned(currentItem),
                   icon: const Icon(Icons.assignment_turned_in_rounded, size: 18),
                   label: const Text('Mark Returned'),
                 ),
@@ -209,6 +215,7 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
           ),
           body: Column(
             children: [
+              if (_isProcessing) const LinearProgressIndicator(),
               // ── Item Summary Banner ──────────────────────────────────────
               Container(
                 width: double.infinity,
@@ -276,7 +283,10 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
               // ── Claims Stream ───────────────────────────────────────────
               Expanded(
                 child: StreamBuilder<List<ClaimModel>>(
-                  stream: _claimService.getClaimsForItemStream(currentItem.id),
+                  stream: _claimService.getClaimsForItemStream(
+                    currentItem.id,
+                    ownerId: currentItem.ownerId,
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -425,11 +435,39 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                         ),
                       ),
                       if (claim.claimantEmail.isNotEmpty)
-                        Text(
-                          claim.claimantEmail,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colorScheme.onSurfaceVariant,
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: claim.claimantEmail));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Copied email: ${claim.claimantEmail}'),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  claim.claimantEmail,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.copy_rounded,
+                                  size: 13,
+                                  color: colorScheme.primary,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                     ],

@@ -3,16 +3,15 @@ import 'package:provider/provider.dart';
 import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/item_service.dart';
+import '../activity/my_activity_screen.dart';
 import '../details/item_details_screen.dart';
+import '../profile/profile_screen.dart';
 import '../report/report_item_screen.dart';
 
-/// Home screen with two tabs: "Lost" and "Found".
-///
-/// Features:
-/// - Real-time Firestore synchronization via StreamBuilder
-/// - Search by keyword (title, description, category, location)
-/// - Filters for Category, Campus Location, and Date
-/// - Tab switching between Lost Items and Found Items
+/// Main screen with Bottom Navigation Bar:
+/// 0: Explore Feed (Lost & Found Tabs, Search, Category/Location/Date/Status filters)
+/// 1: My Activity (My Reports & My Claims tabs)
+/// 2: Campus Hub (User Profile, Stats, BSU Guidelines, Role Switcher)
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -21,12 +20,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0; // 0 = Explore, 1 = My Activity, 2 = Campus Hub
+
   final ItemService _itemService = ItemService();
   final TextEditingController _searchController = TextEditingController();
 
   String _searchQuery = '';
   String? _selectedCategory;
   String? _selectedLocation;
+  String? _selectedStatus; // null = All, 'open', 'claimed', 'returned'
   DateTime? _selectedDate;
 
   static const List<String> _categories = [
@@ -60,16 +62,24 @@ class _HomeScreenState extends State<HomeScreen> {
     'Other',
   ];
 
+  static const List<Map<String, String>> _statuses = [
+    {'value': 'open', 'label': 'Open Only'},
+    {'value': 'claimed', 'label': 'Claimed'},
+    {'value': 'returned', 'label': 'Returned'},
+  ];
+
   bool get _hasActiveFilters =>
       _searchQuery.isNotEmpty ||
       _selectedCategory != null ||
       _selectedLocation != null ||
+      _selectedStatus != null ||
       _selectedDate != null;
 
   int get _activeFilterCount {
     int count = 0;
     if (_selectedCategory != null) count++;
     if (_selectedLocation != null) count++;
+    if (_selectedStatus != null) count++;
     if (_selectedDate != null) count++;
     return count;
   }
@@ -86,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _searchQuery = '';
       _selectedCategory = null;
       _selectedLocation = null;
+      _selectedStatus = null;
       _selectedDate = null;
     });
   }
@@ -232,12 +243,112 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showStatusPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Filter by Item Status',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.clear_all_rounded),
+                title: const Text('All Statuses (Open, Claimed, Returned)'),
+                trailing: _selectedStatus == null
+                    ? Icon(Icons.check_rounded,
+                        color: Theme.of(context).colorScheme.primary)
+                    : null,
+                onTap: () {
+                  setState(() => _selectedStatus = null);
+                  Navigator.of(ctx).pop();
+                },
+              ),
+              const Divider(height: 1),
+              ..._statuses.map((s) {
+                final isSelected = _selectedStatus == s['value'];
+                return ListTile(
+                  title: Text(s['label']!),
+                  trailing: isSelected
+                      ? Icon(Icons.check_rounded,
+                          color: Theme.of(context).colorScheme.primary)
+                      : null,
+                  onTap: () {
+                    setState(() => _selectedStatus = s['value']);
+                    Navigator.of(ctx).pop();
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final user = context.watch<AuthProvider>().currentUser;
 
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _buildExploreFeedScreen(colorScheme, user),
+          const MyActivityScreen(),
+          const ProfileScreen(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
+          setState(() => _currentIndex = index);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.search_rounded),
+            selectedIcon: Icon(Icons.search_rounded),
+            label: 'Explore',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.assignment_outlined),
+            selectedIcon: Icon(Icons.assignment_rounded),
+            label: 'My Activity',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Campus Hub',
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ReportItemScreen()),
+          );
+        },
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Report Item'),
+      ),
+    );
+  }
+
+  // ─── Tab 0: Explore Feed Screen ─────────────────────────────────────────
+
+  Widget _buildExploreFeedScreen(ColorScheme colorScheme, dynamic user) {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -322,6 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     searchQuery: _searchQuery,
                     selectedCategory: _selectedCategory,
                     selectedLocation: _selectedLocation,
+                    selectedStatus: _selectedStatus,
                     selectedDate: _selectedDate,
                     onResetFilters: _resetFilters,
                   ),
@@ -331,6 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     searchQuery: _searchQuery,
                     selectedCategory: _selectedCategory,
                     selectedLocation: _selectedLocation,
+                    selectedStatus: _selectedStatus,
                     selectedDate: _selectedDate,
                     onResetFilters: _resetFilters,
                   ),
@@ -338,15 +451,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ReportItemScreen()),
-            );
-          },
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Report Item'),
         ),
       ),
     );
@@ -356,6 +460,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchAndFilterHeader(ColorScheme colorScheme) {
     final dateLabel = _selectedDate != null
         ? '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}'
+        : null;
+
+    final statusLabel = _selectedStatus != null
+        ? _statuses.firstWhere((s) => s['value'] == _selectedStatus)['label']
         : null;
 
     return Container(
@@ -482,6 +590,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(width: 8),
 
+                // Status Filter Chip
+                FilterChip(
+                  avatar: Icon(
+                    Icons.flag_outlined,
+                    size: 15,
+                    color: _selectedStatus != null
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  label: Text(
+                    statusLabel != null ? 'Status: $statusLabel' : 'Status',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: _selectedStatus != null
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  selected: _selectedStatus != null,
+                  onSelected: (_) => _showStatusPicker(),
+                  showCheckmark: false,
+                  deleteIcon: _selectedStatus != null
+                      ? const Icon(Icons.close_rounded, size: 14)
+                      : null,
+                  onDeleted: _selectedStatus != null
+                      ? () => setState(() => _selectedStatus = null)
+                      : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
                 // Date Filter Chip
                 FilterChip(
                   avatar: Icon(
@@ -574,13 +716,14 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 /// Builds the real-time list of items for a specific [type] ('lost' or 'found')
-/// with keyword search and category/location/date filters applied.
+/// with keyword search and category/location/status/date filters applied.
 class _ItemStreamList extends StatelessWidget {
   final ItemService itemService;
   final String type;
   final String searchQuery;
   final String? selectedCategory;
   final String? selectedLocation;
+  final String? selectedStatus;
   final DateTime? selectedDate;
   final VoidCallback onResetFilters;
 
@@ -590,6 +733,7 @@ class _ItemStreamList extends StatelessWidget {
     required this.searchQuery,
     required this.selectedCategory,
     required this.selectedLocation,
+    required this.selectedStatus,
     required this.selectedDate,
     required this.onResetFilters,
   });
@@ -598,6 +742,7 @@ class _ItemStreamList extends StatelessWidget {
       searchQuery.isNotEmpty ||
       selectedCategory != null ||
       selectedLocation != null ||
+      selectedStatus != null ||
       selectedDate != null;
 
   @override
@@ -729,7 +874,14 @@ class _ItemStreamList extends StatelessWidget {
             }
           }
 
-          // 4. Date filter (exact day match)
+          // 4. Status filter
+          if (selectedStatus != null) {
+            if (item.status.toLowerCase() != selectedStatus!.toLowerCase()) {
+              return false;
+            }
+          }
+
+          // 5. Date filter (exact day match)
           if (selectedDate != null) {
             if (item.date.year != selectedDate!.year ||
                 item.date.month != selectedDate!.month ||
@@ -774,7 +926,7 @@ class _ItemStreamList extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Try adjusting your search query, category, location, or date filter.',
+                    'Try adjusting your search query, category, location, status, or date filter.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
@@ -820,6 +972,15 @@ class _ItemCard extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.month}/${dt.day}/${dt.year}';
   }
 
   IconData _getCategoryIcon(String category) {
@@ -1018,7 +1179,7 @@ class _ItemCard extends StatelessWidget {
 
                     const SizedBox(height: 4),
 
-                    // Date
+                    // Date & Relative Time Ago
                     Row(
                       children: [
                         Icon(
@@ -1028,7 +1189,7 @@ class _ItemCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _formatDate(item.date),
+                          '${_formatDate(item.date)} • ${_formatTimeAgo(item.createdAt)}',
                           style: TextStyle(
                             fontSize: 11,
                             color: colorScheme.onSurfaceVariant,
