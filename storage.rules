@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isBatStateUEmail() {
+      return isAuthenticated() &&
+             request.auth.token.email != null &&
+             request.auth.token.email.matches('.*@g\\.batstate-u\\.edu\\.ph$');
+    }
+
+    // Item photo uploads
+    match /item_photos/{photoId} {
+      // Anyone authenticated can view item photos in the feed and details
+      allow read: if isAuthenticated();
+
+      // Only authenticated users with @g.batstate-u.edu.ph email can upload item images (up to 5MB)
+      allow create: if isBatStateUEmail() &&
+                    request.resource.size < 5 * 1024 * 1024 &&
+                    request.resource.contentType.matches('image/.*');
+
+      // Allow owner/authenticated to update or delete photos
+      allow update, delete: if isAuthenticated();
+    }
+
+    // User profile pictures (if applicable)
+    match /profile_photos/{userId}/{photoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId &&
+                   request.resource.size < 2 * 1024 * 1024 &&
+                   request.resource.contentType.matches('image/.*');
+    }
+  }
+}
+

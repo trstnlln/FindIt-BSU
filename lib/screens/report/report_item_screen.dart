@@ -214,8 +214,15 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     final authProvider = context.read<AuthProvider>();
     final itemProvider = context.read<ItemProvider>();
 
-    if (authProvider.currentUser == null) {
+    final user = authProvider.currentUser;
+    if (user == null) {
       setState(() => _errorMessage = 'User session expired. Please log in again.');
+      return;
+    }
+
+    if (!user.email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+      setState(() => _errorMessage =
+          'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post item reports.');
       return;
     }
 

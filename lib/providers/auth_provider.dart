@@ -45,6 +45,14 @@ class AuthProvider extends ChangeNotifier {
     if (firebaseUser == null) {
       _currentUser = null;
     } else {
+      final email = firebaseUser.email ?? '';
+      // Strict domain restriction: if not @g.batstate-u.edu.ph, force logout
+      if (email.isNotEmpty && !isBatStateUEmail(email)) {
+        await _authService.logout();
+        _currentUser = null;
+        notifyListeners();
+        return;
+      }
       try {
         _currentUser = await _authService.getUserData(firebaseUser.uid);
       } catch (e) {
@@ -68,16 +76,24 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Returns true if [email] ends with the official @g.batstate-u.edu.ph domain.
+  static bool isBatStateUEmail(String email) {
+    return email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph');
+  }
+
   // ─── Public Actions ───────────────────────────────────────────────────
 
   /// Registers a new user. Returns an error message string on failure,
-  /// or null on success.
+  /// or null on success. Strictly restricted to @g.batstate-u.edu.ph.
   Future<String?> register({
     required String name,
     required String email,
     required String password,
     required String role,
   }) async {
+    if (!isBatStateUEmail(email)) {
+      return 'Registration restricted: You must use an official @g.batstate-u.edu.ph email address.';
+    }
     _setLoading(true);
     try {
       _currentUser = await _authService.registerWithEmail(
@@ -98,17 +114,24 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Logs in an existing user. Returns an error message string on failure,
-  /// or null on success.
+  /// or null on success. Strictly restricted to @g.batstate-u.edu.ph.
   Future<String?> login({
     required String email,
     required String password,
   }) async {
+    if (!isBatStateUEmail(email)) {
+      return 'Access Denied: Only users with a valid @g.batstate-u.edu.ph email address can log in.';
+    }
     _setLoading(true);
     try {
       _currentUser = await _authService.loginWithEmail(
         email: email,
         password: password,
       );
+      if (_currentUser != null && !isBatStateUEmail(_currentUser!.email)) {
+        await logout();
+        return 'Access Denied: Only users with a valid @g.batstate-u.edu.ph email address can log in.';
+      }
       notifyListeners();
       return null; // null = success
     } on FirebaseAuthException catch (e) {
@@ -140,22 +163,31 @@ class AuthProvider extends ChangeNotifier {
             password: demoPass,
             role: role,
           );
-        } catch (_) {
-          // If Firebase login/register fail, try anonymous sign-in so Firebase Auth is valid
-          final auth = FirebaseAuth.instance;
-          UserCredential? anonCred;
+        } catch (regErr) {
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final fallbackDemoEmail = 'demo_$timestamp@g.batstate-u.edu.ph';
           try {
-            anonCred = await auth.signInAnonymously();
-          } catch (_) {}
-
-          final uid = anonCred?.user?.uid ?? 'demo_student_alangilan';
-          _currentUser = UserModel(
-            id: uid,
-            name: 'Demo Student',
-            email: demoEmail,
-            role: role,
-            createdAt: DateTime.now(),
-          );
+            _currentUser = await _authService.registerWithEmail(
+              name: 'Demo Student',
+              email: fallbackDemoEmail,
+              password: demoPass,
+              role: role,
+            );
+          } catch (_) {
+            try {
+              final anonCred =
+                  await FirebaseAuth.instance.signInAnonymously();
+              _currentUser = UserModel(
+                id: anonCred.user!.uid,
+                name: 'Demo Student',
+                email: 'demo@g.batstate-u.edu.ph',
+                role: role,
+                createdAt: DateTime.now(),
+              );
+            } catch (anonErr) {
+              return 'Could not authenticate demo user: $regErr';
+            }
+          }
         }
       }
       notifyListeners();

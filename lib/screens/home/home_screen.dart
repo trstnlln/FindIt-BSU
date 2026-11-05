@@ -336,6 +336,19 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
+          final user = context.read<AuthProvider>().currentUser;
+          if (user == null || !AuthProvider.isBatStateUEmail(user.email)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post items.',
+                ),
+                backgroundColor: colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const ReportItemScreen()),
           );

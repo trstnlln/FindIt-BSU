@@ -302,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen>
       textInputAction: TextInputAction.next,
       autocorrect: false,
       decoration: InputDecoration(
-        labelText: 'Email address',
+        labelText: 'Email address (@g.batstate-u.edu.ph)',
         prefixIcon: const Icon(Icons.email_outlined),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -310,9 +310,13 @@ class _LoginScreenState extends State<LoginScreen>
         if (value == null || value.trim().isEmpty) {
           return 'Please enter your email.';
         }
+        final email = value.trim().toLowerCase();
         final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-        if (!emailRegex.hasMatch(value.trim())) {
+        if (!emailRegex.hasMatch(email)) {
           return 'Please enter a valid email address.';
+        }
+        if (!email.endsWith('@g.batstate-u.edu.ph')) {
+          return 'Must be an official @g.batstate-u.edu.ph email address.';
         }
         return null;
       },

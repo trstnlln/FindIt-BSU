@@ -22,6 +22,11 @@ class ClaimService {
     required String message,
     required String proof,
   }) async {
+    if (!claimantEmail.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+      throw Exception(
+        'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.',
+      );
+    }
     final now = DateTime.now();
     final claim = ClaimModel(
       id: '',

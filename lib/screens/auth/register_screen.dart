@@ -144,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _buildTextField(
                   id: 'register_email',
                   controller: _emailController,
-                  label: 'Email address',
+                  label: 'Email address (@g.batstate-u.edu.ph)',
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   action: TextInputAction.next,
@@ -152,9 +152,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (v == null || v.trim().isEmpty) {
                       return 'Please enter your email.';
                     }
+                    final email = v.trim().toLowerCase();
                     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                    if (!emailRegex.hasMatch(v.trim())) {
+                    if (!emailRegex.hasMatch(email)) {
                       return 'Please enter a valid email address.';
+                    }
+                    if (!email.endsWith('@g.batstate-u.edu.ph')) {
+                      return 'Must be an official @g.batstate-u.edu.ph email address.';
                     }
                     return null;
                   },

@@ -103,6 +103,18 @@ class ItemDetailsScreen extends StatelessWidget {
   }
 
   void _openClaimForm(BuildContext context, ItemModel item, UserModel user) {
+    if (!user.email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.',
+          ),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1519,6 +1531,12 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
     setState(() => _errorMessage = null);
 
     if (!_formKey.currentState!.validate()) return;
+
+    if (!widget.currentUser.email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+      setState(() => _errorMessage =
+          'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.');
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 

@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Strict domain restriction helper: requires valid @g.batstate-u.edu.ph email
+    function isBatStateUEmail() {
+      return isAuthenticated() &&
+             request.auth.token.email != null &&
+             request.auth.token.email.matches('.*@g\\.batstate-u\\.edu\\.ph$');
+    }
+
+    // ─── Users Collection ──────────────────────────────────────────────
+    match /users/{userId} {
+      // Anyone authenticated can view user profiles (e.g. reporter name, claims)
+      allow read: if isAuthenticated();
+      // Users can only create or update their own user profile document if they have a valid @g.batstate-u.edu.ph email
+      allow create, update: if isOwner(userId) && isBatStateUEmail();
+      // Prevent deleting user records
+      allow delete: if false;
+    }
+
+    // ─── Items Collection ──────────────────────────────────────────────
+    match /items/{itemId} {
+      // Any authenticated user can browse lost and found items
+      allow read: if isAuthenticated();
+
+      // Only users with an official @g.batstate-u.edu.ph email can post items
+      allow create: if isBatStateUEmail() &&
+                    request.resource.data.ownerId == request.auth.uid;
+
+      // Only the item owner can update their own item (e.g. edit details, mark claimed/returned)
+      allow update: if isAuthenticated() &&
+                    resource.data.ownerId == request.auth.uid;
+
+      // Only the item owner can delete their own item
+      allow delete: if isAuthenticated() &&
+                    resource.data.ownerId == request.auth.uid;
+    }
+
+    // ─── Claims Collection ─────────────────────────────────────────────
+    match /claims/{claimId} {
+      // Only the claimant or the item owner can read a claim (maintains privacy of proofs)
+      allow read: if isAuthenticated() &&
+                  (resource.data.claimantId == request.auth.uid ||
+                   resource.data.ownerId == request.auth.uid);
+
+      // Only users with an official @g.batstate-u.edu.ph email can submit claims
+      allow create: if isBatStateUEmail() &&
+                    request.resource.data.claimantId == request.auth.uid;
+
+      // Item owner can approve/reject claims, or claimant can update their own pending claim
+      allow update: if isAuthenticated() &&
+                    (resource.data.ownerId == request.auth.uid ||
+                     resource.data.claimantId == request.auth.uid);
+
+      // Claimant can delete their own claim or item owner can remove it
+      allow delete: if isAuthenticated() &&
+                    (resource.data.claimantId == request.auth.uid ||
+                     resource.data.ownerId == request.auth.uid);
+    }
+  }
+}

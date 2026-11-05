@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/item_model.dart';
@@ -41,6 +42,14 @@ class ItemService {
     required DateTime date,
     String? photoUrl,
   }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null &&
+        user.email != null &&
+        !user.email!.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+      throw Exception(
+        'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post items.',
+      );
+    }
     final now = DateTime.now();
 
     final item = ItemModel(
