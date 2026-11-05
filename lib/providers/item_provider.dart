@@ -44,6 +44,9 @@ class ItemProvider extends ChangeNotifier {
     required String description,
     required String category,
     required String location,
+    String? specificLocation,
+    String? custodyLocation,
+    String? verificationQuestion,
     required DateTime date,
     XFile? imageFile,
   }) async {
@@ -61,12 +64,16 @@ class ItemProvider extends ChangeNotifier {
         description: description,
         category: category,
         location: location,
+        specificLocation: specificLocation,
+        custodyLocation: custodyLocation,
+        verificationQuestion: verificationQuestion,
         date: date,
         photoUrl: photoUrl,
       );
       return null; // null = success
     } catch (e) {
-      return 'Failed to submit report. Please try again.';
+      final msg = e.toString().replaceAll('Exception: ', '').trim();
+      return msg.isNotEmpty ? msg : 'Failed to submit report. Please try again.';
     } finally {
       _setLoading(false);
     }
