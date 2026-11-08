@@ -1,19 +1,22 @@
+import 'document_dates.dart';
+
 /// Represents a claim request submitted by a user for a specific item.
 /// Stored in Firestore under the `claims` collection.
 class ClaimModel {
-  final String id;            // Firestore document ID
-  final String itemId;        // ID of the item being claimed
-  final String itemTitle;     // Title of the item (for easy display)
-  final String ownerId;       // UID of the item's reporter
-  final String claimantId;    // UID of the user submitting the claim
-  final String claimantName;  // Display name of the claimant
+  final String id; // Firestore document ID
+  final String itemId; // ID of the item being claimed
+  final String itemTitle; // Title of the item (for easy display)
+  final String ownerId; // UID of the item's reporter
+  final String claimantId; // UID of the user submitting the claim
+  final String claimantName; // Display name of the claimant
   final String claimantEmail; // Contact email of claimant
-  final String message;       // General message from the claimant
+  final String message; // General message from the claimant
   final String proof;
-  final List<String> verificationAnswers;         // "Something only the owner would know"
-  final String status;        // 'pending', 'approved', or 'rejected'
-  final DateTime createdAt;   // Timestamp when the claim was submitted
-  final DateTime? updatedAt;  // Timestamp when status was changed (nullable)
+  final List<String>
+  verificationAnswers; // "Something only the owner would know"
+  final String status; // 'pending', 'approved', or 'rejected'
+  final DateTime createdAt; // Timestamp when the claim was submitted
+  final DateTime? updatedAt; // Timestamp when status was changed (nullable)
 
   const ClaimModel({
     required this.id,
@@ -45,11 +48,14 @@ class ClaimModel {
       claimantEmail: map['claimantEmail'] as String? ?? '',
       message: map['message'] as String? ?? '',
       proof: map['proof'] as String? ?? '',
-      verificationAnswers:
-        List<String>.from(map['verificationAnswers'] as List? ?? []),
+      verificationAnswers: List<String>.from(
+        map['verificationAnswers'] as List? ?? [],
+      ),
       status: map['status'] as String? ?? 'pending',
       createdAt: _parseDateTime(map['createdAt']),
-      updatedAt: map['updatedAt'] != null ? _parseDateTime(map['updatedAt']) : null,
+      updatedAt: map['updatedAt'] != null
+          ? _parseDateTime(map['updatedAt'])
+          : null,
     );
   }
 
@@ -91,21 +97,12 @@ class ClaimModel {
       claimantEmail: claimantEmail,
       message: message ?? this.message,
       proof: proof ?? this.proof,
+      verificationAnswers: verificationAnswers,
       status: status ?? this.status,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
-  static DateTime _parseDateTime(dynamic value) {
-    if (value == null) return DateTime.now();
-    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
-    if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt());
-    if (value is DateTime) return value;
-    try {
-      return (value as dynamic).toDate() as DateTime;
-    } catch (_) {}
-    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
-    return DateTime.now();
-  }
+  static DateTime _parseDateTime(dynamic value) => parseDocumentDate(value);
 }

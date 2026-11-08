@@ -33,6 +33,7 @@ class ClaimService {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null ||
+        !user.emailVerified ||
         user.uid != claimantId ||
         !AuthProvider.isBatStateUEmail(user.email ?? '') ||
         claimantEmail != user.email) {
@@ -192,7 +193,7 @@ class ClaimService {
           claimData == null ||
           claimData['ownerId'] != uid ||
           claimData['itemId'] != itemId ||
-          claimData['status'] != 'pending') {
+          !['pending', 'reviewing'].contains(claimData['status'])) {
         throw Exception(
           'This claim or item has already changed. Refresh and try again.',
         );
@@ -210,13 +211,23 @@ class ClaimService {
       transaction.update(item.reference, {'status': 'claimed'});
       for (final doc in others) {
         final data = doc.data() as Map<String, dynamic>?;
-        if (data?['status'] == 'pending') {
+        if (['pending', 'reviewing'].contains(data?['status'])) {
           transaction.update(doc.reference, {
             'status': 'rejected',
             'updatedAt': now,
           });
         }
       }
+    });
+  }
+
+  Future<void> updateStage(String claimId, String stage) async {
+    if (!['reviewing', 'ready'].contains(stage)) {
+      throw ArgumentError('Invalid claim stage');
+    }
+    await _claimsRef.doc(claimId).update({
+      'status': stage,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
   }
 

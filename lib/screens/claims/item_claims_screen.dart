@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../models/claim_model.dart';
 import '../../models/item_model.dart';
 import '../../services/claim_service.dart';
 import '../../services/item_service.dart';
+import 'conversation_screen.dart';
+import '../../widgets/claim_journey.dart';
 
 /// Screen where the item owner views incoming ownership claims
 /// and can approve or reject each claim.
 class ItemClaimsScreen extends StatefulWidget {
   final ItemModel item;
 
-  const ItemClaimsScreen({
-    super.key,
-    required this.item,
-  });
+  const ItemClaimsScreen({super.key, required this.item});
 
   @override
   State<ItemClaimsScreen> createState() => _ItemClaimsScreenState();
@@ -25,9 +25,20 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
   bool _isProcessing = false;
 
   String _formatDate(DateTime dt) {
+    if (dt.millisecondsSinceEpoch == 0) return 'Date unavailable';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
@@ -71,7 +82,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Claim approved! "${widget.item.title}" is now marked as Claimed.'),
+            content: Text(
+              'Claim approved! "${widget.item.title}" is now marked as Claimed.',
+            ),
             backgroundColor: Colors.green.shade800,
             behavior: SnackBarBehavior.floating,
           ),
@@ -79,9 +92,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to approve claim: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to approve claim: $e')));
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -93,7 +106,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Reject This Claim?'),
-        content: Text('Are you sure you want to reject the claim from ${claim.claimantName}?'),
+        content: Text(
+          'Are you sure you want to reject the claim from ${claim.claimantName}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -125,9 +140,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to reject claim: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to reject claim: $e')));
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -175,8 +190,26 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _setStage(ClaimModel claim, String stage) async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+    try {
+      await _claimService.updateStage(claim.id, stage);
+    } catch (_) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e')),
+          const SnackBar(
+            content: Text('Could not update the stage. Refresh and try again.'),
+          ),
         );
       }
     } finally {
@@ -204,12 +237,12 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
             ),
             actions: [
               if (currentItem.status.toLowerCase() != 'returned')
-                TextButton.icon(
+                IconButton(
+                  tooltip: 'Mark returned',
                   onPressed: _isProcessing
                       ? null
                       : () => _confirmMarkAsReturned(currentItem),
-                  icon: const Icon(Icons.assignment_turned_in_rounded, size: 18),
-                  label: const Text('Mark Returned'),
+                  icon: const Icon(Icons.assignment_turned_in_outlined),
                 ),
             ],
           ),
@@ -219,7 +252,10 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
               // ── Item Summary Banner ──────────────────────────────────────
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerLow,
                   border: Border(
@@ -245,7 +281,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                           const SizedBox(height: 2),
                           Text(
                             currentItem.specificLocation != null &&
-                                    currentItem.specificLocation!.trim().isNotEmpty
+                                    currentItem.specificLocation!
+                                        .trim()
+                                        .isNotEmpty
                                 ? 'Location: ${currentItem.location} • ${currentItem.specificLocation}'
                                 : 'Location: ${currentItem.location}',
                             style: TextStyle(
@@ -255,7 +293,8 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                           ),
                           if (currentItem.custodyLocation != null &&
                               currentItem.custodyLocation!.trim().isNotEmpty &&
-                              currentItem.custodyLocation != 'With Finder (Not Surrendered)') ...[
+                              currentItem.custodyLocation !=
+                                  'With Finder (Not Surrendered)') ...[
                             const SizedBox(height: 2),
                             Text(
                               'Custody: ${currentItem.custodyLocation}',
@@ -333,7 +372,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                                 width: 64,
                                 height: 64,
                                 decoration: BoxDecoration(
-                                  color: colorScheme.primary.withValues(alpha: 0.08),
+                                  color: colorScheme.primary.withValues(
+                                    alpha: 0.08,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -365,9 +406,13 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                     }
 
                     return ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       itemCount: claims.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 14),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 14),
                       itemBuilder: (context, index) {
                         final claim = claims[index];
                         return _buildClaimCard(
@@ -406,7 +451,10 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
         statusColor = Colors.orange.shade800;
     }
 
-    final isPending = claim.status.toLowerCase() == 'pending';
+    final isPending = [
+      'pending',
+      'reviewing',
+    ].contains(claim.status.toLowerCase());
 
     return Card(
       elevation: 0,
@@ -453,10 +501,14 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                       if (claim.claimantEmail.isNotEmpty)
                         InkWell(
                           onTap: () {
-                            Clipboard.setData(ClipboardData(text: claim.claimantEmail));
+                            Clipboard.setData(
+                              ClipboardData(text: claim.claimantEmail),
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Copied email: ${claim.claimantEmail}'),
+                                content: Text(
+                                  'Copied email: ${claim.claimantEmail}',
+                                ),
                                 duration: const Duration(seconds: 2),
                                 behavior: SnackBarBehavior.floating,
                               ),
@@ -466,14 +518,17 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 2),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  claim.claimantEmail,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    claim.claimantEmail,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -493,7 +548,10 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
@@ -556,10 +614,7 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                 ),
                 child: Text(
                   claim.message,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colorScheme.onSurface,
-                  ),
+                  style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
                 ),
               ),
               const SizedBox(height: 12),
@@ -572,9 +627,7 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
               decoration: BoxDecoration(
                 color: Colors.amber.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.amber.shade300,
-                ),
+                border: Border.all(color: Colors.amber.shade300),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,7 +698,11 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    for (int i = 0; i < claim.verificationAnswers.length; i++) ...[
+                    for (
+                      int i = 0;
+                      i < claim.verificationAnswers.length;
+                      i++
+                    ) ...[
                       Text(
                         'Answer ${i + 1}: ${claim.verificationAnswers[i]}',
                         style: TextStyle(
@@ -662,6 +719,36 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
               ),
             ],
 
+            const SizedBox(height: 16),
+            ClaimJourney(status: claim.status),
+            Wrap(
+              spacing: 8,
+              children: [
+                TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ConversationScreen(claim: claim),
+                    ),
+                  ),
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  label: const Text('Message claimant'),
+                ),
+                if (claim.status == 'pending')
+                  TextButton(
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _setStage(claim, 'reviewing'),
+                    child: const Text('Start review'),
+                  ),
+                if (claim.status == 'approved')
+                  FilledButton(
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _setStage(claim, 'ready'),
+                    child: const Text('Ready for pickup'),
+                  ),
+              ],
+            ),
             // Approve / Reject Actions (for Pending claims)
             if (isPending) ...[
               const SizedBox(height: 16),
@@ -669,7 +756,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _isProcessing ? null : () => _rejectClaim(claim),
+                      onPressed: _isProcessing
+                          ? null
+                          : () => _rejectClaim(claim),
                       icon: const Icon(Icons.close_rounded, size: 16),
                       label: const Text('Reject'),
                       style: OutlinedButton.styleFrom(
@@ -684,7 +773,9 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: _isProcessing ? null : () => _approveClaim(claim),
+                      onPressed: _isProcessing
+                          ? null
+                          : () => _approveClaim(claim),
                       icon: const Icon(Icons.check_rounded, size: 16),
                       label: const Text('Approve'),
                       style: FilledButton.styleFrom(
@@ -705,4 +796,3 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
     );
   }
 }
-

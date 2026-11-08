@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 /// Formats a DateTime as 'Mon DD, YYYY' (e.g., 'Jan 5, 2026').
 String formatDate(DateTime dt) {
+  if (dt.millisecondsSinceEpoch == 0) return 'Date unavailable';
   const months = [
     'Jan',
     'Feb',
@@ -25,6 +26,7 @@ String formatDate(DateTime dt) {
 
 /// Formats a DateTime as 'Month DD, YYYY' (e.g., 'January 5, 2026').
 String formatDateFull(DateTime dt) {
+  if (dt.millisecondsSinceEpoch == 0) return 'Date unavailable';
   const months = [
     'January',
     'February',
@@ -44,6 +46,7 @@ String formatDateFull(DateTime dt) {
 
 /// Returns a human-readable relative time string (e.g., 'Just now', '5m ago').
 String formatTimeAgo(DateTime dt) {
+  if (dt.millisecondsSinceEpoch == 0) return 'Time unavailable';
   final diff = DateTime.now().difference(dt);
   if (diff.inMinutes < 1) return 'Just now';
   if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';

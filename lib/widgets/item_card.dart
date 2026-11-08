@@ -15,7 +15,7 @@ class ItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final lost = item.type == 'lost';
-    final accent = lost ? AppTheme.burgundy : AppTheme.teal;
+    final accent = lost ? AppTheme.burgundy : AppTheme.foundAccent;
     final location = [
       item.location,
       if (item.specificLocation?.trim().isNotEmpty == true)
@@ -187,14 +187,14 @@ class ItemCard extends StatelessWidget {
                     const Icon(
                       Icons.verified_user_outlined,
                       size: 14,
-                      color: AppTheme.teal,
+                      color: AppTheme.foundAccent,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Safe at $custody',
                         style: const TextStyle(
-                          color: AppTheme.teal,
+                          color: AppTheme.foundAccent,
                           fontSize: 12,
                         ),
                         maxLines: 2,

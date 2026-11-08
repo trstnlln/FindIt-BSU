@@ -1,7 +1,7 @@
 # FindIt BSU
 
 A Flutter lost-and-found app for the Batangas State University Alangilan campus.
-The refreshed design uses burgundy, ivory, gold, and teal, with a shared search-pin
+The refreshed design uses Spartan red and white, with a shared search-pin
 logo and Android, iOS, and web icons.
 
 ## Development
@@ -78,3 +78,15 @@ need platform testing.
 The logo master is `assets/branding/findit-logo.png`; `BrandLogo` renders it in the
 app, and launcher sizes are included in the native projects and web manifest.
 The app palette and common component styles live in `lib/theme/app_theme.dart`.
+
+See [release activation and complete testing instructions](docs/release-and-testing.md)
+for account verification, claims, messaging, saved searches, campus moderation,
+notifications, scheduled reminders, photo limits, crash reporting, and CI.
+
+## Automatic university account names
+
+Use **Continue with university Google account** on sign-in or registration to
+import the account's name without typing it. This requires Google Workspace
+university accounts and the Firebase Google provider plus platform OAuth setup.
+See [setup and testing instructions](docs/university-google-sign-in.md).
+Email/password registration still requires a manually entered name.

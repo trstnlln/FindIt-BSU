@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 
 /// Shared campus palette and accessible Material 3 components.
 abstract final class AppTheme {
-  static const burgundy = Color(0xFF842D40);
-  static const ivory = Color(0xFFFAF7F2);
-  static const teal = Color(0xFF22675E);
-  static const gold = Color(0xFFE9BA67);
+  static const spartanRed = Color(0xFFC8102E);
+  static const burgundy = spartanRed;
+  static const ivory = Color(0xFFFFFFFF);
+  static const foundAccent = Color(0xFF70313C);
 
   static ThemeData get light {
     final scheme = ColorScheme.fromSeed(
       seedColor: burgundy,
       primary: burgundy,
-      secondary: teal,
-      tertiary: const Color(0xFF77551F),
+      secondary: const Color(0xFF9E0B23),
+      tertiary: const Color(0xFF8B1A2C),
+      primaryContainer: const Color(0xFFFFE8EC),
+      onPrimaryContainer: const Color(0xFF750018),
+      surfaceContainerLow: const Color(0xFFFFF7F8),
       surface: ivory,
       onSurface: const Color(0xFF292426),
       onSurfaceVariant: const Color(0xFF6F6267),

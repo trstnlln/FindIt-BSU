@@ -2,69 +2,133 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function campusMember() {
+    function campusEmail() {
       return signedIn() && request.auth.token.email is string &&
         request.auth.token.email.matches('^[^@\\s]+@g\\.batstate-u\\.edu\\.ph$');
     }
-    function ownsItem(itemId) {
-      return signedIn() && get(/databases/$(database)/documents/items/$(itemId)).data.ownerId == request.auth.uid;
+    function campusMember() { return campusEmail() && request.auth.token.get('email_verified', false) == true; }
+    function moderator() { return campusMember() && request.auth.token.get('moderator', false) == true; }
+    function ownsItem(itemId) { return campusMember() && get(/databases/$(database)/documents/items/$(itemId)).data.ownerId == request.auth.uid; }
+    function ownsItemAfter(itemId) { return campusMember() && getAfter(/databases/$(database)/documents/items/$(itemId)).data.ownerId == request.auth.uid; }
+    function claimParticipant(claimId) {
+      let claim = get(/databases/$(database)/documents/claims/$(claimId)).data;
+      return campusMember() && (claim.ownerId == request.auth.uid || claim.claimantId == request.auth.uid);
     }
-    function ownsItemAfter(itemId) {
-      return campusMember() && getAfter(/databases/$(database)/documents/items/$(itemId)).data.ownerId == request.auth.uid;
+    function conversationParticipant(claimId) {
+      let chat = get(/databases/$(database)/documents/conversations/$(claimId)).data;
+      return campusMember() && (chat.ownerId == request.auth.uid || chat.claimantId == request.auth.uid);
     }
     match /users/{userId} {
-      allow read: if signedIn();
-      allow create, update: if campusMember() && request.auth.uid == userId &&
+      allow read: if signedIn() && (request.auth.uid == userId || campusMember());
+      allow create, update: if campusEmail() && request.auth.uid == userId &&
         request.resource.data.email == request.auth.token.email &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 200 &&
         request.resource.data.role in ['student', 'teacher', 'staff'];
       allow delete: if false;
+      match /notifications/{id} {
+        allow read: if campusMember() && request.auth.uid == userId;
+        allow update: if campusMember() && request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true;
+        allow create, delete: if false;
+      }
+      match /savedSearches/{id} {
+        allow read, delete: if campusMember() && request.auth.uid == userId;
+        allow create, update: if campusMember() && request.auth.uid == userId &&
+          request.resource.data.keys().hasOnly(['query','category','location','createdAt']) &&
+          request.resource.data.query is string && request.resource.data.query.size() <= 100 &&
+          (request.resource.data.category == null || request.resource.data.category is string) &&
+          (request.resource.data.location == null || request.resource.data.location is string) &&
+          (request.resource.data.query.size() > 0 || request.resource.data.category != null || request.resource.data.location != null);
+      }
+      match /devices/{id} {
+        allow read, delete: if campusMember() && request.auth.uid == userId;
+        allow create, update: if campusMember() && request.auth.uid == userId &&
+          request.resource.data.keys().hasOnly(['token','createdAt']) &&
+          request.resource.data.token is string && request.resource.data.token.size() > 0 && request.resource.data.token.size() <= 2000;
+      }
     }
     match /items/{itemId} {
-      allow read: if signedIn();
+      allow read: if campusMember();
       allow create: if campusMember() && request.resource.data.ownerId == request.auth.uid &&
-        request.resource.data.type in ['lost', 'found'] && request.resource.data.status == 'open';
+        request.resource.data.type in ['lost','found'] && request.resource.data.status == 'open' &&
+        request.resource.data.date is int && request.resource.data.date >= 0 && request.resource.data.date <= request.time.toMillis() + 86400000 &&
+        request.resource.data.createdAt is int && request.resource.data.createdAt >= 0 && request.resource.data.createdAt <= request.time.toMillis() + 300000 &&
+        request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 120 &&
+        request.resource.data.description is string && request.resource.data.description.size() >= 10 && request.resource.data.description.size() <= 2000;
       allow update: if ownsItem(itemId) &&
-        request.resource.data.ownerId == resource.data.ownerId &&
-        request.resource.data.type == resource.data.type &&
-        request.resource.data.status in ['open', 'claimed', 'returned'];
-      allow delete: if ownsItem(itemId);
-
-      // Questions can be shown to claimers. Answers and contents stay private.
-      match /verification/{document} {
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','description','location','custodyLocation','status','updatedAt']) &&
+        request.resource.data.status in ['open','claimed','returned'] &&
+        request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 120 &&
+        request.resource.data.description is string && request.resource.data.description.size() >= 10 && request.resource.data.description.size() <= 2000 &&
+        ((resource.data.status == 'open' && request.resource.data.status in ['open','claimed','returned']) ||
+         (resource.data.status == 'claimed' && request.resource.data.status in ['claimed','returned']) ||
+         (resource.data.status == 'returned' && request.resource.data.status == 'returned'));
+      allow delete: if ownsItem(itemId) || moderator();
+      match /verification/{id} {
         allow read: if campusMember();
         allow create, update: if ownsItemAfter(itemId);
         allow delete: if ownsItem(itemId);
       }
-      match /private/{document} {
+      match /private/{id} {
         allow read, delete: if ownsItem(itemId);
         allow create, update: if ownsItemAfter(itemId);
       }
     }
     match /claims/{claimId} {
-      function participant() {
-        return signedIn() && (resource.data.claimantId == request.auth.uid || resource.data.ownerId == request.auth.uid);
-      }
-      // Permit a claimant to check the absence of their deterministic claim
-      // inside a transaction; existing documents still require participation.
-      allow get: if participant() || (campusMember() && !exists(/databases/$(database)/documents/claims/$(claimId)));
+      function participant() { return campusMember() && (resource.data.claimantId == request.auth.uid || resource.data.ownerId == request.auth.uid); }
+      allow get: if (campusMember() && !exists(/databases/$(database)/documents/claims/$(claimId))) || participant();
       allow list: if participant();
-      allow create: if campusMember() &&
-        request.resource.data.claimantId == request.auth.uid &&
-        request.resource.data.claimantEmail == request.auth.token.email &&
-        request.resource.data.status == 'pending' &&
-        request.resource.data.ownerId != request.auth.uid &&
+      allow create: if campusMember() && request.resource.data.claimantId == request.auth.uid &&
+        request.resource.data.claimantEmail == request.auth.token.email && request.resource.data.status == 'pending' && request.resource.data.ownerId != request.auth.uid &&
+        request.resource.data.createdAt is int && request.resource.data.createdAt >= 0 && request.resource.data.createdAt <= request.time.toMillis() + 300000 &&
+        request.resource.data.itemTitle is string && request.resource.data.itemTitle.size() <= 120 &&
+        request.resource.data.claimantName is string && request.resource.data.claimantName.size() <= 200 &&
+        request.resource.data.message is string && request.resource.data.message.size() <= 2000 &&
+        request.resource.data.proof is string && request.resource.data.proof.size() <= 2000 &&
+        request.resource.data.verificationAnswers is list && request.resource.data.verificationAnswers.size() <= 2 &&
+        (request.resource.data.verificationAnswers.size() == 0 || (request.resource.data.verificationAnswers[0] is string && request.resource.data.verificationAnswers[0].size() <= 2000)) &&
+        (request.resource.data.verificationAnswers.size() < 2 || (request.resource.data.verificationAnswers[1] is string && request.resource.data.verificationAnswers[1].size() <= 2000)) &&
         get(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.ownerId == request.resource.data.ownerId &&
         get(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.status == 'open';
-      // Neither participant may replace identities, proof, or ownership.
-      // Only the reporter can decide an ownership claim.
-      allow update: if signedIn() && resource.data.ownerId == request.auth.uid &&
-        resource.data.status == 'pending' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) &&
-        request.resource.data.status in ['approved', 'rejected'] &&
-        (request.resource.data.status == 'rejected' ||
-          (get(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'open' &&
-           getAfter(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'claimed'));
+      allow update: if campusMember() && resource.data.ownerId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt']) &&
+        ((resource.data.status == 'pending' && request.resource.data.status == 'reviewing') ||
+         (resource.data.status in ['pending','reviewing'] && request.resource.data.status == 'rejected') ||
+         (resource.data.status in ['pending','reviewing'] && request.resource.data.status == 'approved' &&
+          get(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'open' &&
+          getAfter(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'claimed') ||
+         (resource.data.status == 'approved' && request.resource.data.status == 'ready' && get(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'claimed') ||
+         (resource.data.status in ['approved','ready'] && request.resource.data.status == 'returned' &&
+          getAfter(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'returned'));
       allow delete: if participant();
     }
+    match /conversations/{claimId} {
+      allow get: if claimParticipant(claimId);
+      allow list: if false;
+      allow create: if claimParticipant(claimId) &&
+        request.resource.data.keys().hasOnly(['ownerId','claimantId','itemId','itemTitle','createdAt']) &&
+        request.resource.data.ownerId == get(/databases/$(database)/documents/claims/$(claimId)).data.ownerId &&
+        request.resource.data.claimantId == get(/databases/$(database)/documents/claims/$(claimId)).data.claimantId &&
+        request.resource.data.itemId == get(/databases/$(database)/documents/claims/$(claimId)).data.itemId &&
+        request.resource.data.itemTitle == get(/databases/$(database)/documents/claims/$(claimId)).data.itemTitle;
+      allow update, delete: if false;
+      match /messages/{messageId} {
+        allow read: if conversationParticipant(claimId);
+        allow create: if conversationParticipant(claimId) &&
+          request.resource.data.keys().hasOnly(['senderId','text','sentAt']) && request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000 && request.resource.data.sentAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+    match /abuseReports/{id} {
+      allow create: if campusMember() && request.resource.data.keys().hasOnly(['reporterId','itemId','reason','details','status','createdAt']) &&
+        request.resource.data.reporterId == request.auth.uid && request.resource.data.status == 'open' &&
+        request.resource.data.reason in ['False report','Suspicious claim or scam','Inappropriate photo','Spam','Other'] &&
+        request.resource.data.details is string && request.resource.data.details.size() <= 2000;
+      allow read: if moderator();
+      allow update: if moderator() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status == 'resolved';
+      allow delete: if false;
+    }
+    match /campusOffices/{id} { allow read: if campusMember(); allow write: if moderator(); }
   }
 }

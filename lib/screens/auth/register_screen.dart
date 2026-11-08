@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/university_sign_in_button.dart';
 
 /// Register screen — collects name, email, password, and role,
 /// then creates a Firebase Auth account and saves the profile to Firestore.
@@ -68,6 +69,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<void> _continueWithUniversityAccount() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _errorMessage = null);
+    final auth = context.read<AuthProvider>();
+    final error = await auth.signInWithUniversityGoogle();
+    if (!mounted) return;
+    if (error != null) {
+      setState(() => _errorMessage = error);
+    } else if (auth.isLoggedIn) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
   // ─── Build ──────────────────────────────────────────────────────────────
 
   @override
@@ -115,6 +129,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 28),
 
+                UniversitySignInButton(
+                  onPressed: isLoading ? null : _continueWithUniversityAccount,
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  _buildErrorBanner(_errorMessage!, colorScheme),
+                ],
+                const SizedBox(height: 24),
+                const Text(
+                  'Or register with email',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
                 // ── Role Selector ────────────────────────────────────────
                 Text(
                   'I am a...',
@@ -137,6 +165,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
                       return 'Please enter your full name.';
+                    }
+                    if (v.trim().length > 200) {
+                      return 'Use a name of 200 characters or fewer.';
                     }
                     if (v.trim().length < 2) {
                       return 'Name must be at least 2 characters.';
@@ -214,12 +245,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Error Banner ─────────────────────────────────────────
-                if (_errorMessage != null) ...[
-                  _buildErrorBanner(_errorMessage!, colorScheme),
-                  const SizedBox(height: 16),
-                ],
-
                 // ── Register Button ──────────────────────────────────────
                 FilledButton(
                   onPressed: isLoading ? null : _submit,
@@ -249,8 +274,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 20),
 
                 // ── Login Link ───────────────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       'Already have an account? ',
@@ -258,8 +284,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    GestureDetector(
-                      onTap: isLoading
+                    TextButton(
+                      onPressed: isLoading
                           ? null
                           : () => Navigator.of(context).pop(),
                       child: Text(

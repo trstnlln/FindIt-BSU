@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/item_model.dart';
@@ -13,6 +14,8 @@ class ItemProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   bool _disposed = false;
+  double? _uploadProgress;
+  double? get uploadProgress => _uploadProgress;
   ItemModel? _lastCreatedItem;
 
   /// True while a create/fetch operation is in progress.
@@ -57,13 +60,22 @@ class ItemProvider extends ChangeNotifier {
   }) async {
     if (_isLoading) return 'Your report is already being submitted.';
     _lastCreatedItem = null;
+    _uploadProgress = null;
     _setLoading(true);
     try {
       String? photoUrl;
       if (imageFile != null) {
-        photoUrl = await _itemService.uploadItemPhoto(imageFile);
+        photoUrl = await _itemService.uploadItemPhoto(
+          imageFile,
+          onProgress: (value) {
+            _uploadProgress = value;
+            if (!_disposed) notifyListeners();
+          },
+        );
       }
 
+      _uploadProgress = null;
+      if (!_disposed) notifyListeners();
       _lastCreatedItem = await _itemService.createItem(
         ownerId: ownerId,
         type: type,
@@ -80,11 +92,15 @@ class ItemProvider extends ChangeNotifier {
       );
 
       return null; // null = success
-    } catch (e) {
-      final msg = e.toString().replaceAll('Exception: ', '').trim();
-      return msg.isNotEmpty
-          ? msg
-          : 'Failed to submit report. Please try again.';
+    } on FormatException catch (error) {
+      return error.message;
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') {
+        return 'Could not save this report. Verify your university email and sign in again.';
+      }
+      return 'Could not save your report. Check your connection and try again; your draft is kept.';
+    } catch (_) {
+      return 'Could not submit your report. Check your connection and try again; your draft is kept.';
     } finally {
       _setLoading(false);
     }

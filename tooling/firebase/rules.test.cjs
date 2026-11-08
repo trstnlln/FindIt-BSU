@@ -1,12 +1,12 @@
 const { test, before, after, beforeEach } = require('node:test');
 const fs = require('node:fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs, runTransaction } = require('firebase/firestore');
+const { doc, setDoc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs, runTransaction, serverTimestamp } = require('firebase/firestore');
 let env;
 const email = uid => `${uid}@g.batstate-u.edu.ph`;
-const db = uid => env.authenticatedContext(uid, { email: email(uid) }).firestore();
-const item = { ownerId: 'finder', type: 'found', status: 'open', title: 'Wallet' };
-const claim = { itemId: 'wallet', ownerId: 'finder', claimantId: 'student', claimantEmail: email('student'), status: 'pending', proof: 'Red lining' };
+const db = uid => env.authenticatedContext(uid, { email: email(uid), email_verified: true }).firestore();
+const item = { ownerId: 'finder', type: 'found', status: 'open', title: 'Wallet', description: 'Brown wallet found in library', date:Date.now(), createdAt:Date.now() };
+const claim = { itemId: 'wallet', ownerId: 'finder', claimantId: 'student', claimantEmail: email('student'), status: 'pending', proof: 'Red lining',itemTitle:'Wallet',claimantName:'Student',message:'I lost this wallet.',verificationAnswers:[],createdAt:Date.now() };
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-finditbsu', firestore: { host: '127.0.0.1', port: 8085, rules: fs.readFileSync('../../firestore.rules', 'utf8') } });
 });
@@ -85,4 +85,69 @@ test('two claims cannot be approved for the same item', async () => {
   batch.update(doc(finder, 'claims/claim'), { status: 'approved', updatedAt: 1 });
   await assertSucceeds(batch.commit());
   await assertFails(updateDoc(doc(finder, 'claims/second'), { status: 'approved', updatedAt: 2 }));
+});
+
+test('unverified university accounts can create profiles but cannot browse or post', async () => {
+  const unverified = env.authenticatedContext('new', {email: email('new'), email_verified:false}).firestore();
+  await assertSucceeds(setDoc(doc(unverified,'users/new'),{email:email('new'),role:'student',name:'New student'}));
+  await assertFails(getDoc(doc(unverified,'items/wallet')));
+  await assertFails(setDoc(doc(unverified,'items/new'),{...item,ownerId:'new'}));
+});
+test('claim journey advances through review, approval, pickup and return', async () => {
+  const finder = db('finder');
+  await assertSucceeds(updateDoc(doc(finder,'claims/claim'),{status:'reviewing',updatedAt:1}));
+  await assertFails(updateDoc(doc(finder,'claims/claim'),{status:'ready',updatedAt:2}));
+  const approve = writeBatch(finder);
+  approve.update(doc(finder,'items/wallet'),{status:'claimed'});
+  approve.update(doc(finder,'claims/claim'),{status:'approved',updatedAt:3});
+  await assertSucceeds(approve.commit());
+  await assertSucceeds(updateDoc(doc(finder,'claims/claim'),{status:'ready',updatedAt:4}));
+  await assertFails(updateDoc(doc(finder,'claims/claim'),{status:'returned',updatedAt:5}));
+  const returned = writeBatch(finder);
+  returned.update(doc(finder,'items/wallet'),{status:'returned'});
+  returned.update(doc(finder,'claims/claim'),{status:'returned',updatedAt:6});
+  await assertSucceeds(returned.commit());
+});
+test('private conversations exclude outsiders and prevent forged senders', async () => {
+  const student = db('student');
+  await assertSucceeds(runTransaction(student,async tx => {
+    const ref = doc(student,'conversations/claim'); await tx.get(ref);
+    tx.set(ref,{ownerId:'finder',claimantId:'student',itemId:'wallet',itemTitle:'Wallet',createdAt:serverTimestamp()});
+  }));
+  await assertSucceeds(setDoc(doc(student,'conversations/claim/messages/one'),{senderId:'student',text:'Can we meet at the campus office?',sentAt:serverTimestamp()}));
+  await assertSucceeds(getDoc(doc(db('finder'),'conversations/claim/messages/one')));
+  await assertFails(getDoc(doc(db('other'),'conversations/claim/messages/one')));
+  await assertFails(setDoc(doc(student,'conversations/claim/messages/forged'),{senderId:'finder',text:'Forged message',sentAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(student,'conversations/claim'),{claimantId:'other'}));
+});
+test('saved searches and notification history belong to one verified user', async () => {
+  const student = db('student');
+  await assertSucceeds(setDoc(doc(student,'users/student/savedSearches/calculator'),{query:'calculator',category:'Electronics',location:null,createdAt:serverTimestamp()}));
+  await assertFails(getDoc(doc(db('other'),'users/student/savedSearches/calculator')));
+  await assertFails(setDoc(doc(student,'users/student/notifications/fake'),{title:'Forged notification',read:false}));
+  await env.withSecurityRulesDisabled(async ctx => setDoc(doc(ctx.firestore(),'users/student/notifications/real'),{title:'Claim update',read:false}));
+  await assertSucceeds(updateDoc(doc(student,'users/student/notifications/real'),{read:true}));
+  await assertFails(updateDoc(doc(student,'users/student/notifications/real'),{title:'Changed'}));
+});
+test('self-selected staff role grants no moderator access', async () => {
+  const student = db('student');
+  await setDoc(doc(student,'users/student'),{name:'Student',email:email('student'),role:'staff'});
+  await assertSucceeds(setDoc(doc(student,'abuseReports/concern'),{reporterId:'student',itemId:'wallet',reason:'Spam',details:'Repeated fake reports',status:'open',createdAt:serverTimestamp()}));
+  await assertFails(getDoc(doc(student,'abuseReports/concern')));
+  await assertFails(updateDoc(doc(student,'abuseReports/concern'),{status:'resolved'}));
+  const moderator = env.authenticatedContext('moderator',{email:email('moderator'),email_verified:true,moderator:true}).firestore();
+  await assertSucceeds(getDoc(doc(moderator,'abuseReports/concern')));
+  await assertSucceeds(updateDoc(doc(moderator,'abuseReports/concern'),{status:'resolved'}));
+  await assertSucceeds(setDoc(doc(moderator,'campusOffices/library'),{name:'Library Front Desk',hours:'Published by the campus',instructions:'Bring your ID.'}));
+  await assertFails(setDoc(doc(student,'campusOffices/forged'),{name:'Fake office'}));
+});
+
+test('malformed claims cannot inject invalid ownership-answer types', async () => {
+  await assertFails(setDoc(doc(db('student'),'claims/malformed'),{...claim,verificationAnswers:[{bad:'value'}]}));
+  await assertFails(setDoc(doc(db('student'),'claims/oversized'),{...claim,proof:'x'.repeat(2001)}));
+});
+
+test('unbounded report dates cannot poison the campus feed', async () => {
+  await assertFails(setDoc(doc(db('finder'),'items/overflow'),{...item,date:9007199254740991}));
+  await assertFails(setDoc(doc(db('finder'),'items/negative'),{...item,createdAt:-1}));
 });

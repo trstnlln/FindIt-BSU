@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/claim_model.dart';
 import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/claim_service.dart';
 import '../../services/item_service.dart';
+import '../../widgets/claim_journey.dart';
 import '../claims/item_claims_screen.dart';
 import '../details/item_details_screen.dart';
 import '../report/report_item_screen.dart';
@@ -24,9 +26,20 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
   final ClaimService _claimService = ClaimService();
 
   String _formatDate(DateTime dt) {
+    if (dt.millisecondsSinceEpoch == 0) return 'Date unavailable';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
@@ -65,16 +78,13 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
             indicatorWeight: 3,
             labelColor: colorScheme.primary,
             unselectedLabelColor: colorScheme.onSurfaceVariant,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
             tabs: const [
-              Tab(
-                icon: Icon(Icons.assignment_outlined),
-                text: 'My Reports',
-              ),
-              Tab(
-                icon: Icon(Icons.verified_user_outlined),
-                text: 'My Claims',
-              ),
+              Tab(icon: Icon(Icons.assignment_outlined), text: 'My Reports'),
+              Tab(icon: Icon(Icons.verified_user_outlined), text: 'My Claims'),
             ],
           ),
         ),
@@ -90,7 +100,11 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
 
   // ─── Tab 1: My Reports ───────────────────────────────────────────────────
 
-  Widget _buildMyReportsTab(String userId, ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildMyReportsTab(
+    String userId,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
     return StreamBuilder<List<ItemModel>>(
       stream: _itemService.getItemsByUserStream(userId),
       builder: (context, snapshot) {
@@ -176,7 +190,11 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
     );
   }
 
-  Widget _buildMyReportCard(ItemModel item, ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildMyReportCard(
+    ItemModel item,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
     final isLost = item.type.toLowerCase() == 'lost';
 
     Color statusColor;
@@ -206,9 +224,7 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ItemDetailsScreen(item: item),
-            ),
+            MaterialPageRoute(builder: (_) => ItemDetailsScreen(item: item)),
           );
         },
         borderRadius: BorderRadius.circular(16),
@@ -221,12 +237,17 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: isLost ? Colors.red.shade50 : Colors.teal.shade50,
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: isLost ? Colors.red.shade200 : Colors.teal.shade200,
+                        color: isLost
+                            ? Colors.red.shade200
+                            : Colors.teal.shade200,
                       ),
                     ),
                     child: Text(
@@ -234,7 +255,9 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: isLost ? Colors.red.shade800 : Colors.teal.shade800,
+                        color: isLost
+                            ? Colors.red.shade800
+                            : Colors.teal.shade800,
                       ),
                     ),
                   ),
@@ -251,7 +274,10 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
@@ -310,8 +336,9 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
                 ),
                 builder: (context, snapshot) {
                   final claims = snapshot.data ?? [];
-                  final pendingCount =
-                      claims.where((c) => c.status == 'pending').length;
+                  final pendingCount = claims
+                      .where((c) => c.status == 'pending')
+                      .length;
 
                   return Row(
                     children: [
@@ -382,7 +409,11 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
 
   // ─── Tab 2: My Claims ───────────────────────────────────────────────────
 
-  Widget _buildMyClaimsTab(String userId, ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildMyClaimsTab(
+    String userId,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
     return StreamBuilder<List<ClaimModel>>(
       stream: _claimService.getClaimsByClaimantStream(userId),
       builder: (context, snapshot) {
@@ -456,7 +487,11 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
     );
   }
 
-  Widget _buildMyClaimCard(ClaimModel claim, ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildMyClaimCard(
+    ClaimModel claim,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
     Color statusColor;
     IconData statusIcon;
     switch (claim.status.toLowerCase()) {
@@ -487,13 +522,17 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ClaimJourney(status: claim.status),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Icon(statusIcon, color: statusColor, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    claim.itemTitle.isNotEmpty ? claim.itemTitle : 'Claim Request',
+                    claim.itemTitle.isNotEmpty
+                        ? claim.itemTitle
+                        : 'Claim Request',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -503,7 +542,10 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
@@ -533,10 +575,7 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
               const SizedBox(height: 2),
               Text(
                 claim.proof,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurface,
-                ),
+                style: TextStyle(fontSize: 12, color: colorScheme.onSurface),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

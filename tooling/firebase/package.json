@@ -2,11 +2,14 @@
   "name": "findit-bsu-rules-tests",
   "private": true,
   "scripts": {
-    "test": "firebase emulators:exec --project demo-finditbsu --only firestore --config ../../firebase.json \"node --test rules.test.cjs\""
+    "test": "firebase emulators:exec --project demo-finditbsu --only firestore --config ../../firebase.json \"node --test rules.test.cjs\"",
+    "test:alerts": "node firebase-cli.cjs emulators:exec --project demo-finditbsu --only firestore,functions,eventarc --config ../../firebase.json \"node alerts.integration.cjs\"",
+    "test:ui": "node firebase-cli.cjs emulators:exec --project demo-finditbsu --only auth,firestore,functions,eventarc --config ../../firebase.json \"node ui.integration.cjs\""
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.0",
+    "firebase": "12.19.0",
     "firebase-tools": "15.35.0",
-    "firebase": "13.2.0",
-    "@firebase/rules-unit-testing": "6.0.0"
+    "playwright": "1.62.1"
   }
 }

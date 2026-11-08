@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/claim_model.dart';
 import '../../models/item_model.dart';
 import '../../models/user_model.dart';
@@ -10,6 +11,11 @@ import '../../services/item_service.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/cached_image.dart';
 import '../claims/item_claims_screen.dart';
+import '../claims/conversation_screen.dart';
+import '../report/edit_report_screen.dart';
+import '../community/report_concern_screen.dart';
+import '../../widgets/pickup_details.dart';
+import '../../widgets/claim_journey.dart';
 
 /// Screen displaying the complete details of a lost or found item,
 /// with options to submit an ownership claim, view incoming claims,
@@ -17,15 +23,23 @@ import '../claims/item_claims_screen.dart';
 class ItemDetailsScreen extends StatelessWidget {
   final ItemModel item;
 
-  const ItemDetailsScreen({
-    super.key,
-    required this.item,
-  });
+  const ItemDetailsScreen({super.key, required this.item});
 
   String _formatDate(DateTime dt) {
+    if (dt.millisecondsSinceEpoch == 0) return 'Date unavailable';
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
@@ -81,10 +95,7 @@ class ItemDetailsScreen extends StatelessWidget {
               clipBehavior: Clip.none,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                ),
+                child: Image.network(imageUrl, fit: BoxFit.contain),
               ),
             ),
             Positioned(
@@ -131,10 +142,17 @@ class ItemDetailsScreen extends StatelessWidget {
               // BSU Alangilan Header Banner
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
-                  color: isLost ? const Color(0xFF8B0000) : const Color(0xFF006666),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  color: isLost
+                      ? const Color(0xFF8B0000)
+                      : const Color(0xFF006666),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -159,10 +177,7 @@ class ItemDetailsScreen extends StatelessWidget {
                     ),
                     const Text(
                       'The National Engineering University • Alangilan Campus',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 9,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 9),
                     ),
                   ],
                 ),
@@ -223,7 +238,11 @@ class ItemDetailsScreen extends StatelessWidget {
                       ),
                       child: Text(
                         item.description,
-                        style: const TextStyle(fontSize: 11, color: Colors.black87, height: 1.3),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.black87,
+                          height: 1.3,
+                        ),
                         textAlign: TextAlign.center,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
@@ -231,7 +250,10 @@ class ItemDetailsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(10),
@@ -240,7 +262,11 @@ class ItemDetailsScreen extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.qr_code_2_rounded, size: 28, color: colorScheme.primary),
+                          Icon(
+                            Icons.qr_code_2_rounded,
+                            size: 28,
+                            color: colorScheme.primary,
+                          ),
                           const SizedBox(width: 8),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,7 +281,10 @@ class ItemDetailsScreen extends StatelessWidget {
                               ),
                               Text(
                                 'ID: ${item.id.isNotEmpty ? (item.id.length < 8 ? item.id : item.id.substring(0, 8)) : "NEW"}',
-                                style: const TextStyle(fontSize: 9, color: Colors.black45),
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.black45,
+                                ),
                               ),
                             ],
                           ),
@@ -268,7 +297,8 @@ class ItemDetailsScreen extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () {
-                              final flyerText = '========================================\n'
+                              final flyerText =
+                                  '========================================\n'
                                   '  BATANGAS STATE UNIVERSITY - ALANGILAN\n'
                                   '       ${isLost ? "LOST ITEM NOTICE" : "FOUND ITEM NOTICE"}\n'
                                   '========================================\n'
@@ -284,7 +314,9 @@ class ItemDetailsScreen extends StatelessWidget {
                               Navigator.of(ctx).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Printable bulletin text copied to clipboard!'),
+                                  content: Text(
+                                    'Printable bulletin text copied to clipboard!',
+                                  ),
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
@@ -329,10 +361,7 @@ class ItemDetailsScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => _ClaimFormBottomSheet(
-        item: item,
-        currentUser: user,
-      ),
+      builder: (ctx) => _ClaimFormBottomSheet(item: item, currentUser: user),
     );
   }
 
@@ -389,9 +418,9 @@ class ItemDetailsScreen extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop(); // dismiss loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
       }
     }
   }
@@ -449,9 +478,9 @@ class ItemDetailsScreen extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop(); // dismiss loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete report: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete report: $e')));
       }
     }
   }
@@ -524,48 +553,86 @@ class ItemDetailsScreen extends StatelessWidget {
         final currentItem = snapshot.data ?? item;
         final isLost = currentItem.type.toLowerCase() == 'lost';
         final statusColor = _getStatusColor(currentItem.status, colorScheme);
-        final hasPhoto = currentItem.photoUrl != null &&
-            currentItem.photoUrl!.isNotEmpty;
-        final isOwner = currentUser != null && currentUser.id == currentItem.ownerId;
+        final hasPhoto =
+            currentItem.photoUrl != null && currentItem.photoUrl!.isNotEmpty;
+        final isOwner =
+            currentUser != null && currentUser.id == currentItem.ownerId;
 
         return Scaffold(
           appBar: AppBar(
             title: Text(
               isLost ? 'Lost Item Details' : 'Found Item Details',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.print_outlined),
-                tooltip: 'Generate Printable Flyer',
-                onPressed: () => _showFlyerDialog(context, currentItem),
-              ),
-              IconButton(
-                icon: const Icon(Icons.share_outlined),
-                tooltip: 'Copy item details',
-                onPressed: () {
-                  final text = 'FindIt BSU [${currentItem.type.toUpperCase()}]\n'
-                      'Item: ${currentItem.title}\n'
-                      'Category: ${currentItem.category}\n'
-                      'Location: ${currentItem.location}\n'
-                      'Date: ${_formatDate(currentItem.date)}\n'
-                      'Description: ${currentItem.description}';
-                  Clipboard.setData(ClipboardData(text: text));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Item report details copied to clipboard!'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+              PopupMenuButton<String>(
+                tooltip: 'Report options',
+                onSelected: (action) async {
+                  switch (action) {
+                    case 'edit':
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => EditReportScreen(item: currentItem),
+                        ),
+                      );
+                    case 'flag':
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              ReportConcernScreen(itemId: currentItem.id),
+                        ),
+                      );
+                    case 'print':
+                      _showFlyerDialog(context, currentItem);
+                    case 'copy':
+                      await Clipboard.setData(
+                        ClipboardData(
+                          text:
+                              'FindIt BSU [${currentItem.type.toUpperCase()}]\nItem: ${currentItem.title}\nCategory: ${currentItem.category}\nLocation: ${currentItem.location}\nDate: ${_formatDate(currentItem.date)}\nDescription: ${currentItem.description}',
+                        ),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Report details copied.'),
+                          ),
+                        );
+                      }
+                    case 'delete':
+                      await _confirmDeleteItem(
+                        context,
+                        currentItem,
+                        itemService,
+                      );
+                  }
                 },
+                itemBuilder: (_) => [
+                  if (isOwner && currentItem.status != 'returned')
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit report'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'copy',
+                    child: Text('Copy item details'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'print',
+                    child: Text('Printable flyer'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'flag',
+                    child: Text('Report a concern'),
+                  ),
+                  if (isOwner)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete report'),
+                    ),
+                ],
               ),
-              if (isOwner)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  tooltip: 'Delete report',
-                  onPressed: () =>
-                      _confirmDeleteItem(context, currentItem, itemService),
-                ),
             ],
           ),
           body: SingleChildScrollView(
@@ -673,7 +740,8 @@ class ItemDetailsScreen extends StatelessWidget {
 
                 if (currentItem.custodyLocation != null &&
                     currentItem.custodyLocation!.trim().isNotEmpty &&
-                    currentItem.custodyLocation != 'With Finder (Not Surrendered)') ...[
+                    currentItem.custodyLocation !=
+                        'With Finder (Not Surrendered)') ...[
                   const SizedBox(height: 16),
                   Card(
                     elevation: 0,
@@ -687,7 +755,11 @@ class ItemDetailsScreen extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.shield_rounded, color: Colors.teal.shade800, size: 28),
+                          Icon(
+                            Icons.shield_rounded,
+                            color: Colors.teal.shade800,
+                            size: 28,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -738,8 +810,9 @@ class ItemDetailsScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                       side: BorderSide(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                     child: InkWell(
@@ -837,7 +910,9 @@ class ItemDetailsScreen extends StatelessWidget {
                           colorScheme: colorScheme,
                         ),
                         if (currentItem.specificLocation != null &&
-                            currentItem.specificLocation!.trim().isNotEmpty) ...[
+                            currentItem.specificLocation!
+                                .trim()
+                                .isNotEmpty) ...[
                           const Divider(height: 24),
                           _buildDetailTile(
                             icon: Icons.meeting_room_outlined,
@@ -848,7 +923,8 @@ class ItemDetailsScreen extends StatelessWidget {
                         ],
                         if (currentItem.custodyLocation != null &&
                             currentItem.custodyLocation!.trim().isNotEmpty &&
-                            currentItem.custodyLocation != 'With Finder (Not Surrendered)') ...[
+                            currentItem.custodyLocation !=
+                                'With Finder (Not Surrendered)') ...[
                           const Divider(height: 24),
                           _buildDetailTile(
                             icon: Icons.shield_outlined,
@@ -858,7 +934,9 @@ class ItemDetailsScreen extends StatelessWidget {
                           ),
                         ],
                         if (currentItem.verificationQuestion != null &&
-                            currentItem.verificationQuestion!.trim().isNotEmpty) ...[
+                            currentItem.verificationQuestion!
+                                .trim()
+                                .isNotEmpty) ...[
                           const Divider(height: 24),
                           _buildDetailTile(
                             icon: Icons.vpn_key_rounded,
@@ -923,6 +1001,8 @@ class ItemDetailsScreen extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
+                PickupDetails(item: currentItem),
+                const SizedBox(height: 16),
                 // ── Possible Matches Section ───────────────────────────────
                 _buildPossibleMatchesSection(
                   context: context,
@@ -981,11 +1061,7 @@ class ItemDetailsScreen extends StatelessWidget {
             color: colorScheme.primary.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            icon,
-            size: 22,
-            color: colorScheme.primary,
-          ),
+          child: Icon(icon, size: 22, color: colorScheme.primary),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -1024,8 +1100,9 @@ class ItemDetailsScreen extends StatelessWidget {
     required ColorScheme colorScheme,
     required ThemeData theme,
   }) {
-    final oppositeType =
-        currentItem.type.toLowerCase() == 'lost' ? 'found' : 'lost';
+    final oppositeType = currentItem.type.toLowerCase() == 'lost'
+        ? 'found'
+        : 'lost';
 
     return StreamBuilder<List<ItemModel>>(
       stream: itemService.getItemsStream(type: oppositeType),
@@ -1124,13 +1201,17 @@ class ItemDetailsScreen extends StatelessWidget {
                 if (scoredMatches.isEmpty) ...[
                   Container(
                     width: double.infinity,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                     ),
                     child: Row(
@@ -1138,8 +1219,9 @@ class ItemDetailsScreen extends StatelessWidget {
                         Icon(
                           Icons.search_off_rounded,
                           size: 22,
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.7),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -1196,9 +1278,7 @@ class ItemDetailsScreen extends StatelessWidget {
       color: colorScheme.primaryContainer.withValues(alpha: 0.35),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(
-          color: colorScheme.primary.withValues(alpha: 0.3),
-        ),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -1213,12 +1293,14 @@ class ItemDetailsScreen extends StatelessWidget {
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Your Report (Owner Controls)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: colorScheme.primary,
+                Expanded(
+                  child: Text(
+                    'Manage your report',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: colorScheme.primary,
+                    ),
                   ),
                 ),
               ],
@@ -1241,8 +1323,9 @@ class ItemDetailsScreen extends StatelessWidget {
               ),
               builder: (context, snapshot) {
                 final claims = snapshot.data ?? [];
-                final pendingCount =
-                    claims.where((c) => c.status == 'pending').length;
+                final pendingCount = claims
+                    .where((c) => c.status == 'pending')
+                    .length;
 
                 return FilledButton.icon(
                   onPressed: () {
@@ -1274,8 +1357,10 @@ class ItemDetailsScreen extends StatelessWidget {
             // Mark as Returned Action or Resolved Banner
             if (isReturned) ...[
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(12),
@@ -1347,11 +1432,12 @@ class ItemDetailsScreen extends StatelessWidget {
           String statusMsg;
 
           switch (existingClaim.status.toLowerCase()) {
+            case 'ready':
+            case 'returned':
             case 'approved':
               claimBadgeColor = Colors.green.shade700;
               claimIcon = Icons.check_circle_rounded;
-              statusMsg =
-                  'Your claim has been APPROVED by the poster! Coordinate with them to retrieve the item.';
+              statusMsg = 'Track your handover below and coordinate privately with the reporter.';
               break;
             case 'rejected':
               claimBadgeColor = colorScheme.error;
@@ -1362,8 +1448,7 @@ class ItemDetailsScreen extends StatelessWidget {
             default:
               claimBadgeColor = Colors.orange.shade800;
               claimIcon = Icons.hourglass_top_rounded;
-              statusMsg =
-                  'Your claim has been submitted. The poster is reviewing your secret verification proof.';
+              statusMsg = 'Your claim has been submitted. The poster is reviewing your secret verification proof.';
           }
 
           return Card(
@@ -1371,25 +1456,38 @@ class ItemDetailsScreen extends StatelessWidget {
             color: claimBadgeColor.withValues(alpha: 0.08),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: claimBadgeColor.withValues(alpha: 0.3),
-              ),
+              side: BorderSide(color: claimBadgeColor.withValues(alpha: 0.3)),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  ClaimJourney(status: existingClaim.status),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ConversationScreen(claim: existingClaim),
+                      ),
+                    ),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Message reporter'),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Icon(claimIcon, color: claimBadgeColor, size: 20),
                       const SizedBox(width: 8),
-                      Text(
-                        'Your Claim Status: ${existingClaim.status.toUpperCase()}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: claimBadgeColor,
-                          fontSize: 13,
+                      Expanded(
+                        child: Text(
+                          'Your Claim Status: ${existingClaim.status.toUpperCase()}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: claimBadgeColor,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -1472,9 +1570,31 @@ class _ScoredMatch {
 }
 
 const Set<String> _commonMatchStopWords = {
-  'the', 'and', 'for', 'with', 'from', 'this', 'that', 'lost', 'found',
-  'item', 'have', 'has', 'near', 'around', 'area', 'bsu', 'color',
-  'black', 'white', 'blue', 'red', 'large', 'small', 'old', 'new',
+  'the',
+  'and',
+  'for',
+  'with',
+  'from',
+  'this',
+  'that',
+  'lost',
+  'found',
+  'item',
+  'have',
+  'has',
+  'near',
+  'around',
+  'area',
+  'bsu',
+  'color',
+  'black',
+  'white',
+  'blue',
+  'red',
+  'large',
+  'small',
+  'old',
+  'new',
 };
 
 List<_ScoredMatch> _findScoredMatches(
@@ -1490,7 +1610,12 @@ List<_ScoredMatch> _findScoredMatches(
   final results = <_ScoredMatch>[];
 
   for (final other in oppositeItems) {
-    if (other.id == currentItem.id) continue;
+    if (currentItem.status != 'open' ||
+        other.status != 'open' ||
+        other.ownerId == currentItem.ownerId ||
+        other.id == currentItem.id) {
+      continue;
+    }
 
     // 1. Same category requirement
     if (other.category.toLowerCase() != currentItem.category.toLowerCase()) {
@@ -1553,9 +1678,20 @@ class _PossibleMatchTile extends StatelessWidget {
   });
 
   String _formatDate(DateTime dt) {
+    if (dt.millisecondsSinceEpoch == 0) return 'Date unavailable';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
@@ -1576,9 +1712,7 @@ class _PossibleMatchTile extends StatelessWidget {
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ItemDetailsScreen(item: item),
-            ),
+            MaterialPageRoute(builder: (_) => ItemDetailsScreen(item: item)),
           );
         },
         child: Padding(
@@ -1590,8 +1724,10 @@ class _PossibleMatchTile extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.amber.shade100,
                       borderRadius: BorderRadius.circular(6),
@@ -1618,14 +1754,17 @@ class _PossibleMatchTile extends StatelessWidget {
                   ),
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: isLost ? Colors.red.shade50 : Colors.teal.shade50,
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color:
-                            isLost ? Colors.red.shade200 : Colors.teal.shade200,
+                        color: isLost
+                            ? Colors.red.shade200
+                            : Colors.teal.shade200,
                       ),
                     ),
                     child: Text(
@@ -1633,8 +1772,9 @@ class _PossibleMatchTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color:
-                            isLost ? Colors.red.shade800 : Colors.teal.shade800,
+                        color: isLost
+                            ? Colors.red.shade800
+                            : Colors.teal.shade800,
                       ),
                     ),
                   ),
@@ -1656,15 +1796,15 @@ class _PossibleMatchTile extends StatelessWidget {
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 Container(
-                              width: 56,
-                              height: 56,
-                              color: colorScheme.surfaceContainerHighest,
-                              child: Icon(
-                                Icons.category_outlined,
-                                color: colorScheme.primary,
-                                size: 24,
-                              ),
-                            ),
+                                  width: 56,
+                                  height: 56,
+                                  color: colorScheme.surfaceContainerHighest,
+                                  child: Icon(
+                                    Icons.category_outlined,
+                                    color: colorScheme.primary,
+                                    size: 24,
+                                  ),
+                                ),
                           )
                         : Container(
                             width: 56,
@@ -1768,10 +1908,7 @@ class _ClaimFormBottomSheet extends StatefulWidget {
   final ItemModel item;
   final UserModel currentUser;
 
-  const _ClaimFormBottomSheet({
-    required this.item,
-    required this.currentUser,
-  });
+  const _ClaimFormBottomSheet({required this.item, required this.currentUser});
 
   @override
   State<_ClaimFormBottomSheet> createState() => _ClaimFormBottomSheetState();
@@ -1807,8 +1944,9 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
   Future<void> _loadQuestions() async {
     setState(() => _loadingQuestions = true);
     try {
-      final questions =
-          await ItemService().getVerificationQuestions(widget.item.id);
+      final questions = await ItemService().getVerificationQuestions(
+        widget.item.id,
+      );
       if (!mounted) return;
       setState(() {
         _questions = questions;
@@ -1816,13 +1954,16 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
           controller.dispose();
         }
         _answerControllers.clear();
-        _answerControllers
-            .addAll(questions.map((_) => TextEditingController()));
+        _answerControllers.addAll(
+          questions.map((_) => TextEditingController()),
+        );
       });
     } catch (e) {
       debugPrint('loadQuestions error: $e');
       if (mounted) {
-        setState(() => _errorMessage = 'Could not load verification questions.');
+        setState(
+          () => _errorMessage = 'Could not load verification questions.',
+        );
       }
     } finally {
       if (mounted) setState(() => _loadingQuestions = false);
@@ -1839,7 +1980,7 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
     super.dispose();
   }
 
-    Widget _buildVerificationQuestions() {
+  Widget _buildVerificationQuestions() {
     if (!_needsVerification) return const SizedBox.shrink();
     if (_loadingQuestions) {
       return const Padding(
@@ -1868,10 +2009,12 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
         for (int i = 0; i < _questions.length; i++) ...[
           TextFormField(
             controller: _answerControllers[i],
+            maxLength: 2000,
             decoration: InputDecoration(
               labelText: _questions[i],
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             validator: (value) => (value == null || value.trim().isEmpty)
                 ? 'Please answer this question.'
@@ -1882,7 +2025,7 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
       ],
     );
   }
-  
+
   Future<void> _submitClaim() async {
     if (_isSubmitting || _loadingQuestions) return;
     FocusScope.of(context).unfocus();
@@ -1890,9 +2033,12 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    if (!widget.currentUser.email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
-      setState(() => _errorMessage =
-          'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.');
+    if (!widget.currentUser.email.trim().toLowerCase().endsWith(
+      '@g.batstate-u.edu.ph',
+    )) {
+      setState(
+        () => _errorMessage = 'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.',
+      );
       return;
     }
 
@@ -1908,8 +2054,9 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
         claimantEmail: widget.currentUser.email,
         message: _messageController.text.trim(),
         proof: _proofController.text.trim(),
-        verificationAnswers:
-            _answerControllers.map((c) => c.text.trim()).toList(),
+        verificationAnswers: _answerControllers
+            .map((c) => c.text.trim())
+            .toList(),
       );
 
       if (!mounted) return;
@@ -2015,8 +2162,9 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -2036,13 +2184,13 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
               // 1. Message Field
               TextFormField(
                 controller: _messageController,
+                maxLength: 2000,
                 textInputAction: TextInputAction.next,
                 textCapitalization: TextCapitalization.sentences,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  labelText: 'Message to Finder / Poster',
-                  hintText:
-                      'e.g. When and where you lost it, or your contact preference...',
+                  labelText: 'Message to reporter',
+                  hintText: 'e.g. When and where you lost it, or your contact preference...',
                   alignLabelWithHint: true,
                   prefixIcon: const Padding(
                     padding: EdgeInsets.only(bottom: 40),
@@ -2075,8 +2223,11 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.vpn_key_rounded,
-                              size: 16, color: Colors.amber.shade900),
+                          Icon(
+                            Icons.vpn_key_rounded,
+                            size: 16,
+                            color: Colors.amber.shade900,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Finder\'s Anti-Fraud Prompt:',
@@ -2106,13 +2257,15 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
               // 2. Secret Proof Field ("Something only the owner would know")
               TextFormField(
                 controller: _proofController,
+                maxLength: 2000,
                 textInputAction: TextInputAction.done,
                 textCapitalization: TextCapitalization.sentences,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  labelText: 'Something only the owner would know',
-                  hintText:
-                      'e.g. Lock screen photo, specific sticker, item contents, serial number, unique mark...',
+                  labelText: 'Ownership proof',
+                  helperText: 'Describe a detail only the owner knows.',
+                  helperMaxLines: 2,
+                  hintText: 'e.g. Lock screen photo, specific sticker, item contents, serial number, unique mark...',
                   alignLabelWithHint: true,
                   prefixIcon: const Padding(
                     padding: EdgeInsets.only(bottom: 40),
@@ -2137,8 +2290,10 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
               // Error banner
               if (_errorMessage != null) ...[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(10),

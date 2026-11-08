@@ -1,11 +1,13 @@
+import 'document_dates.dart';
+
 /// Represents a registered user of the FindIt BSU app.
 /// Stored in Firestore under the `users` collection.
 class UserModel {
-  final String id;          // Firestore document ID (same as Firebase Auth UID)
-  final String name;        // Display name
-  final String email;       // Email address used for login
-  final String role;        // 'student', 'teacher', or 'staff'
-  final String? photoUrl;   // Optional profile photo URL (Firebase Storage)
+  final String id; // Firestore document ID (same as Firebase Auth UID)
+  final String name; // Display name
+  final String email; // Email address used for login
+  final String role; // 'student', 'teacher', or 'staff'
+  final String? photoUrl; // Optional profile photo URL (Firebase Storage)
   final DateTime createdAt; // Account creation timestamp
 
   const UserModel({
@@ -31,17 +33,7 @@ class UserModel {
     );
   }
 
-  static DateTime _parseDateTime(dynamic value) {
-    if (value == null) return DateTime.now();
-    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
-    if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt());
-    if (value is DateTime) return value;
-    try {
-      return (value as dynamic).toDate() as DateTime;
-    } catch (_) {}
-    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
-    return DateTime.now();
-  }
+  static DateTime _parseDateTime(dynamic value) => parseDocumentDate(value);
 
   // ---------------------------------------------------------------------------
   // Converts this UserModel to a map suitable for writing to Firestore.

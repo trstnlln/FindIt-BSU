@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/item_model.dart';
 
 /// Intelligent recommendation service that correlates "Lost" reports with "Found" reports.
@@ -6,26 +7,35 @@ import '../models/item_model.dart';
 /// Uses weighted scoring across Category, Campus Location, Date proximity,
 /// and Keyword token overlap between titles and descriptions.
 class MatchingService {
-  final CollectionReference _itemsRef =
-      FirebaseFirestore.instance.collection('items');
+  final CollectionReference _itemsRef = FirebaseFirestore.instance.collection(
+    'items',
+  );
 
   /// Finds opposite-type candidate items that potentially match [item].
   ///
   /// For a 'lost' item, searches 'found' items (and vice versa).
   /// Returns items ranked by similarity score.
   Future<List<ItemModel>> findMatches(ItemModel item, {int limit = 5}) async {
+    if (item.status != 'open') return [];
     final oppositeType = item.type.toLowerCase() == 'lost' ? 'found' : 'lost';
 
     try {
-      // Query open/claimed items of the opposite type
+      // Query open reports from other students.
       final snapshot = await _itemsRef
           .where('type', isEqualTo: oppositeType)
           .get();
 
       final candidates = snapshot.docs
-          .map((doc) =>
-              ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
-          .where((c) => c.id != item.id && c.status != 'returned')
+          .map(
+            (doc) =>
+                ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id),
+          )
+          .where(
+            (c) =>
+                c.id != item.id &&
+                c.status == 'open' &&
+                c.ownerId != item.ownerId,
+          )
           .toList();
 
       final scoredItems = <_ScoredItem>[];
@@ -40,10 +50,7 @@ class MatchingService {
 
       scoredItems.sort((a, b) => b.score.compareTo(a.score));
 
-      return scoredItems
-          .take(limit)
-          .map((scored) => scored.item)
-          .toList();
+      return scoredItems.take(limit).map((scored) => scored.item).toList();
     } catch (_) {
       return [];
     }
@@ -92,8 +99,23 @@ class MatchingService {
 
   static Set<String> _extractKeywords(String text) {
     const stopWords = {
-      'the', 'and', 'with', 'for', 'this', 'that', 'from', 'have', 'lost',
-      'found', 'item', 'please', 'help', 'near', 'inside', 'outside', 'around'
+      'the',
+      'and',
+      'with',
+      'for',
+      'this',
+      'that',
+      'from',
+      'have',
+      'lost',
+      'found',
+      'item',
+      'please',
+      'help',
+      'near',
+      'inside',
+      'outside',
+      'around',
     };
 
     return text
@@ -111,4 +133,3 @@ class _ScoredItem {
 
   _ScoredItem(this.item, this.score);
 }
-

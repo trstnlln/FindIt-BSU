@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/university_sign_in_button.dart';
 import 'register_screen.dart';
 import '../../widgets/brand_logo.dart';
 
@@ -73,6 +74,20 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  Future<void> _resetPassword() async {
+    final error = await context.read<AuthProvider>().resetPassword(
+      _emailController.text,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error ?? 'If an account exists, a reset link has been sent. Check your university inbox.',
+        ),
+      ),
+    );
+  }
+
   void _goToRegister() {
     Navigator.of(context).push(
       PageRouteBuilder(
@@ -91,6 +106,17 @@ class _LoginScreenState extends State<LoginScreen>
             ),
       ),
     );
+  }
+
+  Future<void> _continueWithUniversityAccount() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _errorMessage = null);
+    final auth = context.read<AuthProvider>();
+    final error = await auth.signInWithUniversityGoogle();
+    if (!mounted) return;
+    if (error != null) {
+      setState(() => _errorMessage = error);
+    }
   }
 
   // ─── Build ──────────────────────────────────────────────────────────────
@@ -153,6 +179,22 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 const SizedBox(height: 24),
 
+                                UniversitySignInButton(
+                                  onPressed: isLoading
+                                      ? null
+                                      : _continueWithUniversityAccount,
+                                ),
+                                const SizedBox(height: 20),
+                                if (_errorMessage != null) ...[
+                                  _buildErrorBanner(_errorMessage!),
+                                  const SizedBox(height: 16),
+                                ],
+                                const Text(
+                                  'Or sign in with email',
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 20),
+
                                 // Email field
                                 _buildEmailField(colorScheme),
                                 const SizedBox(height: 16),
@@ -161,12 +203,15 @@ class _LoginScreenState extends State<LoginScreen>
                                 _buildPasswordField(colorScheme),
                                 const SizedBox(height: 12),
 
-                                // Error banner
-                                if (_errorMessage != null) ...[
-                                  _buildErrorBanner(_errorMessage!),
-                                  const SizedBox(height: 12),
-                                ],
-
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: isLoading
+                                        ? null
+                                        : _resetPassword,
+                                    child: const Text('Forgot password?'),
+                                  ),
+                                ),
                                 // Login button
                                 _buildLoginButton(isLoading, colorScheme),
                               ],

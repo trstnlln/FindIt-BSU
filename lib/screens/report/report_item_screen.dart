@@ -1,4 +1,8 @@
 import 'dart:typed_data';
+import 'dart:async';
+
+import '../../services/report_draft_store.dart';
+import '../../services/photo_upload.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,8 +52,90 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   Uint8List? _selectedImageBytes; // bytes for preview across all platforms
   String? _errorMessage;
 
+  Timer? _draftTimer;
+  final _drafts = ReportDraftStore();
+  String? _draftOwner;
+  bool _draftRestored = false;
+  bool _submitted = false;
+  String? _draftMessage;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_draftRestored) return;
+    _draftRestored = true;
+    // The form can also be embedded in isolated widget tests without auth.
+    try {
+      _draftOwner = context.read<AuthProvider>().currentUser?.id;
+    } catch (_) {
+      return;
+    }
+    for (final controller in [
+      _titleController,
+      _descriptionController,
+      _specificLocationController,
+    ]) {
+      controller.addListener(_scheduleDraft);
+    }
+    _restoreDraft();
+  }
+
+  Future<void> _restoreDraft() async {
+    final uid = _draftOwner;
+    if (uid == null) return;
+    try {
+      final draft = await _drafts.load(uid);
+      if (!mounted || draft == null || _titleController.text.isNotEmpty) return;
+      setState(() {
+        _type = draft['type'] == 'found' ? 'found' : 'lost';
+        _titleController.text = draft['title'] as String? ?? '';
+        _descriptionController.text = draft['description'] as String? ?? '';
+        _specificLocationController.text =
+            draft['specificLocation'] as String? ?? '';
+        _category = itemCategories.contains(draft['category'])
+            ? draft['category'] as String
+            : null;
+        _campusLocation = campusLocations.contains(draft['location'])
+            ? draft['location'] as String
+            : null;
+        _custodyLocation = custodyLocations.contains(draft['custodyLocation'])
+            ? draft['custodyLocation'] as String
+            : null;
+        final date = DateTime.tryParse(draft['date'] as String? ?? '');
+        if (date != null && !date.isAfter(DateTime.now())) _date = date;
+        _draftMessage = 'Your unfinished report was restored. Reattach photos and private verification details.';
+      });
+    } catch (_) {
+      /* Draft storage is optional; submission remains available. */
+    }
+  }
+
+  void _scheduleDraft() {
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 500), _saveDraft);
+  }
+
+  Future<void> _saveDraft() async {
+    if (_draftOwner == null || _submitted) return;
+    try {
+      await _drafts.save(_draftOwner!, {
+        'type': _type,
+        'title': _titleController.text,
+        'description': _descriptionController.text,
+        'category': _category,
+        'location': _campusLocation,
+        'specificLocation': _specificLocationController.text,
+        'custodyLocation': _custodyLocation,
+        'date': _date.toIso8601String(),
+      });
+    } catch (_) {
+      /* Keep the in-memory form on storage failure. */
+    }
+  }
+
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    _saveDraft();
     _titleController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
@@ -93,7 +179,11 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       );
 
       if (pickedFile != null) {
+        if (await pickedFile.length() > 5 * 1024 * 1024) {
+          throw const FormatException('Choose a photo smaller than 5 MB.');
+        }
         final bytes = await pickedFile.readAsBytes();
+        validateReportPhoto(bytes);
         if (!mounted) return;
         setState(() {
           _selectedImage = pickedFile;
@@ -103,7 +193,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
+            .showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : 'Could not open a photo. Check camera or photo permissions and try again.')));
       }
     }
   }
@@ -262,6 +352,14 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     if (error != null) {
       setState(() => _errorMessage = error);
     } else {
+      _submitted = true;
+      _draftTimer?.cancel();
+      if (_draftOwner != null) {
+        try {
+          await _drafts.clear(_draftOwner!);
+        } catch (_) {}
+      }
+      if (!mounted) return;
       // Show success and pop back
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -286,7 +384,8 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isLoading = context.watch<ItemProvider>().isLoading;
+    final reportState = context.watch<ItemProvider>();
+    final isLoading = reportState.isLoading;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Report an Item')),
@@ -296,6 +395,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
           absorbing: isLoading,
           child: Form(
             key: _formKey,
+            onChanged: _scheduleDraft,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -311,6 +411,11 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 24),
+                if (_draftMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(_draftMessage!),
+                  ),
                 _buildTypeToggle(colorScheme),
                 const SizedBox(height: 20),
 
@@ -362,6 +467,16 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
 
                 // ── Submit Button ───────────────────────────────────────
                 const SizedBox(height: 8),
+                if (isLoading) ...[
+                  LinearProgressIndicator(value: reportState.uploadProgress),
+                  const SizedBox(height: 8),
+                  Text(
+                    reportState.uploadProgress == null
+                        ? 'Saving your report…'
+                        : 'Uploading photo: ${(reportState.uploadProgress! * 100).round()}%',
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 _buildSubmitButton(isLoading),
                 const SizedBox(height: 24),
               ],
@@ -438,6 +553,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
 
   Widget _buildTitleField() {
     return TextFormField(
+      maxLength: 120,
       controller: _titleController,
       textInputAction: TextInputAction.next,
       textCapitalization: TextCapitalization.words,
@@ -461,6 +577,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
 
   Widget _buildDescriptionField() {
     return TextFormField(
+      maxLength: 2000,
       controller: _descriptionController,
       textInputAction: TextInputAction.newline,
       textCapitalization: TextCapitalization.sentences,

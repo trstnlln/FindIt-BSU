@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../services/device_alerts.dart';
+
 import 'package:provider/provider.dart';
 
 import '../../models/item_model.dart';
@@ -8,6 +13,8 @@ import '../../utils/helpers.dart';
 import '../../widgets/empty_state_view.dart';
 import '../../widgets/item_card.dart';
 import '../../widgets/brand_logo.dart';
+import '../../widgets/alerts_bell.dart';
+import '../../services/community_service.dart';
 import '../../models/user_model.dart';
 import '../activity/my_activity_screen.dart';
 import '../profile/profile_screen.dart';
@@ -56,6 +63,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_selectedStatus != null) count++;
     if (_selectedDate != null) count++;
     return count;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(DeviceAlerts.restore());
   }
 
   @override
@@ -376,6 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           actions: [
+            const AlertsBell(),
             IconButton(
               icon: const Icon(Icons.logout_rounded),
               tooltip: 'Log out',
@@ -408,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Find your way back.',
+                      'Spartans look out for Spartans.',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.w800,
@@ -417,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'A helping hand, right here on campus.',
+                      'Lost something? Let’s bring it home.',
                       style: TextStyle(
                         color: colorScheme.onSurfaceVariant,
                         fontSize: 13,
@@ -528,6 +542,39 @@ class _HomeScreenState extends State<HomeScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                ActionChip(
+                  avatar: const Icon(Icons.bookmark_add_outlined, size: 18),
+                  label: const Text('Save search'),
+                  onPressed: () async {
+                    try {
+                      await CommunityService().saveSearch(
+                        query: _searchQuery,
+                        category: _selectedCategory,
+                        location: _selectedLocation,
+                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Saved. New matching reports will appear in your alerts.',
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (_) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Enter a keyword or choose a category/location, then try saving again.',
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
                 // Category Filter Chip
                 FilterChip(
                   avatar: Icon(

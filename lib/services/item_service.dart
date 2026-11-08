@@ -4,6 +4,10 @@ import 'package:image_picker/image_picker.dart';
 
 import 'dart:convert';
 
+import 'photo_upload.dart';
+
+import 'package:http_parser/http_parser.dart';
+
 import 'package:http/http.dart' as http;
 
 import '../models/item_model.dart';
@@ -20,33 +24,60 @@ class ItemService {
   static const String _cloudName = 'pa77o7a4';
   static const String _uploadPreset = 'finditbsu_unsigned';
 
-  Future<String> uploadItemPhoto(XFile imageFile) async {
-    final bytes = await imageFile.readAsBytes();
-    final uri = Uri.parse(
-      'https://api.cloudinary.com/v1_1/$_cloudName/image/upload',
-    );
-
-    final request = http.MultipartRequest('POST', uri)
-      ..fields['upload_preset'] = _uploadPreset
-      ..files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes,
-          filename: imageFile.name.isNotEmpty ? imageFile.name : 'upload.jpg',
-        ),
-      );
-
-    final streamed = await request.send().timeout(const Duration(seconds: 30));
-    final response = await http.Response.fromStream(streamed);
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(
-        'Upload failed (${response.statusCode}): ${response.body}',
-      );
+  Future<String> uploadItemPhoto(
+    XFile imageFile, {
+    void Function(double)? onProgress,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !user.emailVerified) {
+      throw Exception('Verify your university email before uploading a photo.');
     }
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    return data['secure_url'] as String;
+    if (await imageFile.length() > 5 * 1024 * 1024) {
+      throw const FormatException('Choose a photo smaller than 5 MB.');
+    }
+    final bytes = await imageFile.readAsBytes();
+    final format = validateReportPhoto(bytes);
+    final client = http.Client();
+    try {
+      final request =
+          ProgressMultipartRequest(
+              'POST',
+              Uri.parse(
+                'https://api.cloudinary.com/v1_1/$_cloudName/image/upload',
+              ),
+              onProgress: onProgress,
+            )
+            ..fields['upload_preset'] = _uploadPreset
+            ..files.add(
+              http.MultipartFile.fromBytes(
+                'file',
+                bytes,
+                filename: 'report.${format.extension}',
+                contentType: MediaType.parse(format.mime),
+              ),
+            );
+      final streamed = await client
+          .send(request)
+          .timeout(const Duration(seconds: 60));
+      final response = await http.Response.fromStream(streamed)
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Photo upload failed. Please try again.');
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final url = Uri.tryParse(data['secure_url'] as String? ?? '');
+      if (url == null ||
+          url.scheme != 'https' ||
+          url.host != 'res.cloudinary.com') {
+        throw Exception(
+          'The photo service returned an invalid image. Please try again.',
+        );
+      }
+      onProgress?.call(1);
+      return url.toString();
+    } finally {
+      client.close();
+    }
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
@@ -69,6 +100,7 @@ class ItemService {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null ||
+        !user.emailVerified ||
         user.uid != ownerId ||
         !AuthProvider.isBatStateUEmail(user.email ?? '')) {
       throw Exception(
@@ -97,20 +129,23 @@ class ItemService {
     // Commit the report and its verification details together. A failed
     // private write must not leave a public report that appears to have failed.
     final docRef = _itemsRef.doc();
-    final batch = FirebaseFirestore.instance.batch();
-    batch.set(docRef, item.toMap());
-    if (secureDetails != null) {
-      batch.set(docRef.collection('verification').doc('questions'), {
-        'questions': List<String>.from(secureDetails['questions'] as List),
-      });
-      batch.set(docRef.collection('private').doc('details'), {
-        'exactAmount': secureDetails['exactAmount'],
-        'foundCondition': secureDetails['foundCondition'],
-        'answers': List<String>.from(secureDetails['answers'] as List),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
+    // Transactions fail offline instead of silently queuing a report that a
+    // user might submit again after reopening their saved draft.
+    await FirebaseFirestore.instance.runTransaction((batch) async {
+      await batch.get(docRef);
+      batch.set(docRef, item.toMap());
+      if (secureDetails != null) {
+        batch.set(docRef.collection('verification').doc('questions'), {
+          'questions': List<String>.from(secureDetails['questions'] as List),
+        });
+        batch.set(docRef.collection('private').doc('details'), {
+          'exactAmount': secureDetails['exactAmount'],
+          'foundCondition': secureDetails['foundCondition'],
+          'answers': List<String>.from(secureDetails['answers'] as List),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    });
     return ItemModel.fromMap(item.toMap(), docRef.id);
   }
 
@@ -245,7 +280,55 @@ class ItemService {
 
   /// Updates the status of an item ('open', 'claimed', or 'returned').
   Future<void> updateItemStatus(String itemId, String status) async {
-    await _itemsRef.doc(itemId).update({'status': status});
+    if (status != 'returned') {
+      await _itemsRef.doc(itemId).update({'status': status});
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw StateError('Sign in first.');
+    final claims = await FirebaseFirestore.instance
+        .collection('claims')
+        .where('itemId', isEqualTo: itemId)
+        .where('ownerId', isEqualTo: uid)
+        .get();
+    if (claims.docs.length > 450) {
+      throw StateError('This report needs administrator assistance to close.');
+    }
+    final batch = FirebaseFirestore.instance.batch();
+    batch.update(_itemsRef.doc(itemId), {'status': status});
+    for (final doc in claims.docs) {
+      final previous = doc.data()['status'];
+      if (['approved', 'ready', 'pending', 'reviewing'].contains(previous)) {
+        batch.update(doc.reference, {
+          'status': ['approved', 'ready'].contains(previous)
+              ? 'returned'
+              : 'rejected',
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+    }
+    await batch.commit();
+  }
+
+  Future<void> editItem(
+    String itemId, {
+    required String title,
+    required String description,
+    required String location,
+    String? custodyLocation,
+  }) async {
+    if (title.trim().length < 3 || description.trim().length < 10) {
+      throw Exception(
+        'Add a title and a description of at least 10 characters.',
+      );
+    }
+    await _itemsRef.doc(itemId).update({
+      'title': title.trim(),
+      'description': description.trim(),
+      'location': location,
+      'custodyLocation': custodyLocation,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   /// Deletes an item report from Firestore.

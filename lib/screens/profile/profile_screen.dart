@@ -5,6 +5,11 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/claim_service.dart';
 import '../../services/item_service.dart';
+import '../../services/community_service.dart';
+import '../community/alerts_screen.dart';
+import '../community/saved_searches_screen.dart';
+import '../community/moderation_screen.dart';
+import '../community/campus_offices_screen.dart';
 
 /// Campus Hub / User Profile screen displaying user account details,
 /// activity summary counters, BSU Alangilan lost & found guidelines,
@@ -46,6 +51,58 @@ class ProfileScreen extends StatelessWidget {
             _buildUserHeader(user, colorScheme, theme),
             const SizedBox(height: 16),
 
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.notifications_none_rounded),
+                    title: const Text('Alerts & match updates'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AlertsScreen(),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.bookmarks_outlined),
+                    title: const Text('Saved searches'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SavedSearchesScreen(),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.location_on_outlined),
+                    title: const Text('Campus pickup offices'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CampusOfficesScreen(),
+                      ),
+                    ),
+                  ),
+                  FutureBuilder<bool>(
+                    future: CommunityService().canModerate(),
+                    builder: (context, snapshot) => snapshot.data == true
+                        ? ListTile(
+                            leading: const Icon(Icons.shield_outlined),
+                            title: const Text('Campus moderation'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ModerationScreen(),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             // ── Activity Summary Stats ────────────────────────────────
             _buildStatsCard(user.id, colorScheme, theme),
             const SizedBox(height: 16),

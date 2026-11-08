@@ -4,6 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/user_model.dart';
+import '../models/university_account.dart';
+
+import 'package:google_sign_in/google_sign_in.dart';
+
 import '../services/auth_service.dart';
 
 /// Manages authentication state for the entire app.
@@ -16,8 +20,11 @@ class AuthProvider extends ChangeNotifier {
 
   UserModel? _currentUser;
   bool _isInitialLoading = true;
+  bool _emailVerified = false;
+  bool get isEmailVerified => _emailVerified;
   bool _isLoading = false;
   bool _disposed = false;
+  bool _universitySignInInProgress = false;
   int _authRevision = 0;
   int _sessionRevision = 0;
   StreamSubscription<User?>? _authSubscription;
@@ -39,6 +46,7 @@ class AuthProvider extends ChangeNotifier {
     // Subscribe to Firebase auth changes immediately on creation.
     _authSubscription = _authService.authStateChanges.listen(
       (firebaseUser) async {
+        if (_universitySignInInProgress) return;
         await _onAuthStateChanged(firebaseUser);
         if (_isInitialLoading) {
           _isInitialLoading = false;
@@ -58,6 +66,7 @@ class AuthProvider extends ChangeNotifier {
   /// Called automatically by Firebase whenever auth state changes.
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
     final revision = ++_authRevision;
+    _emailVerified = firebaseUser?.emailVerified ?? false;
     if (firebaseUser == null) {
       ++_sessionRevision;
       _currentUser = null;
@@ -97,10 +106,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Returns true if [email] ends with the official @g.batstate-u.edu.ph domain.
-  static bool isBatStateUEmail(String email) {
-    return RegExp(r'^[^@\s]+@g\.batstate-u\.edu\.ph$')
-        .hasMatch(email.trim().toLowerCase());
-  }
+  static bool isBatStateUEmail(String email) =>
+      UniversityAccount.isCampusEmail(email);
 
   // ─── Public Actions ───────────────────────────────────────────────────
 
@@ -160,6 +167,7 @@ class AuthProvider extends ChangeNotifier {
       if (_disposed || session != _sessionRevision) {
         return 'Session changed. Please sign in again.';
       }
+      _emailVerified = _authService.currentFirebaseUser?.emailVerified ?? false;
       _currentUser = user;
       if (!isBatStateUEmail(user.email)) {
         await logout();
@@ -176,12 +184,88 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Registration and login share one verified Google flow. No typed name,
+  /// password, or user-selected role is submitted by the Google button.
+  Future<String?> signInWithUniversityGoogle() async {
+    if (_isLoading) return 'Please wait for the current request to finish.';
+    final session = _sessionRevision;
+    ++_authRevision; // invalidate older profile reads
+    _universitySignInInProgress = true;
+    _setLoading(true);
+    try {
+      final user = await _authService.signInWithUniversityGoogle();
+      if (_disposed || session != _sessionRevision) {
+        await _authService.logout();
+        return 'Session changed. Please sign in again.';
+      }
+      if (!isBatStateUEmail(user.email) || user.name.trim().isEmpty) {
+        await _authService.logout();
+        _currentUser = null;
+        return 'Choose your university Google account to continue.';
+      }
+      _currentUser = user;
+      _emailVerified = true;
+      _isInitialLoading = false;
+      return null;
+    } on UniversityAccountException catch (error) {
+      return error.message;
+    } on GoogleSignInException catch (error) {
+      if (error.code == GoogleSignInExceptionCode.canceled) return null;
+      return 'University sign-in is unavailable right now. Please try again or use email and password.';
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'popup-closed-by-user' ||
+          error.code == 'cancelled-popup-request') {
+        return null;
+      }
+      return _mapFirebaseError(error.code);
+    } catch (_) {
+      return 'We couldn’t finish university sign-in. Check your connection and try again.';
+    } finally {
+      _universitySignInInProgress = false;
+      _setLoading(false);
+    }
+  }
+
+  Future<String?> sendVerificationEmail() async {
+    try {
+      await _authService.sendVerificationEmail();
+      return null;
+    } on FirebaseAuthException catch (error) {
+      return _mapFirebaseError(error.code);
+    } catch (_) {
+      return 'Could not send the email. Check your connection and try again.';
+    }
+  }
+
+  Future<String?> refreshVerification() async {
+    try {
+      final user = await _authService.refreshIdentity();
+      await _onAuthStateChanged(user);
+      return _emailVerified
+          ? null
+          : 'Your email is not verified yet. Open the link in your university inbox first.';
+    } catch (_) {
+      return 'Could not check verification. Please try again.';
+    }
+  }
+
+  Future<String?> resetPassword(String email) async {
+    if (!isBatStateUEmail(email)) return 'Enter your university email first.';
+    try {
+      await _authService.resetPassword(email);
+      return null;
+    } catch (_) {
+      return 'Could not send the reset email. Please try again.';
+    }
+  }
+
   /// Signs the user out and clears local state.
   Future<void> logout() async {
     ++_sessionRevision;
     ++_authRevision;
     await _authService.logout();
     _currentUser = null;
+    _emailVerified = false;
     notifyListeners();
   }
 
@@ -220,7 +304,14 @@ class AuthProvider extends ChangeNotifier {
       case 'network-request-failed':
         return 'Cannot connect to Firebase. Please check your internet connection.';
       case 'operation-not-allowed':
-        return 'Email/Password sign-in is not enabled in Firebase Console.';
+      case 'university-sign-in-unavailable':
+        return 'This sign-in method is unavailable right now. Please use another sign-in option.';
+      case 'popup-blocked':
+        return 'Allow the sign-in popup in your browser and try again.';
+      case 'account-exists-with-different-credential':
+        return 'This email already uses another sign-in method. Sign in with your existing method first.';
+      case 'unauthorized-domain':
+        return 'University sign-in is unavailable on this website. Please use email and password.';
       case 'channel-error':
         return 'Please enter both your email and password.';
       default:
