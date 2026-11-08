@@ -594,6 +594,58 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
               ),
             ),
 
+            // Claimant's answers to verification questions (if provided)
+            if (claim.verificationAnswers.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.quiz_outlined,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Claimant Verification Answers:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    for (int i = 0; i < claim.verificationAnswers.length; i++) ...[
+                      Text(
+                        'Answer ${i + 1}: ${claim.verificationAnswers[i]}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      if (i < claim.verificationAnswers.length - 1)
+                        const SizedBox(height: 4),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+
             // Approve / Reject Actions (for Pending claims)
             if (isPending) ...[
               const SizedBox(height: 16),

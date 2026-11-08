@@ -21,6 +21,7 @@ class ClaimService {
     required String claimantEmail,
     required String message,
     required String proof,
+    List<String> verificationAnswers = const [],
   }) async {
     if (!claimantEmail.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
       throw Exception(
@@ -38,6 +39,7 @@ class ClaimService {
       claimantEmail: claimantEmail,
       message: message,
       proof: proof,
+      verificationAnswers: verificationAnswers,
       status: 'pending',
       createdAt: now,
     );
@@ -141,7 +143,13 @@ class ClaimService {
 
     // 3. Mark other pending claims for this item as rejected
     // Single equality filter on 'itemId' to avoid requiring composite indexes in Firestore
-    final otherClaims = await _claimsRef.where('itemId', isEqualTo: itemId).get();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('You must be logged in.');
+
+    final otherClaims = await _claimsRef
+        .where('itemId', isEqualTo: itemId)
+        .where('ownerId', isEqualTo: uid)
+        .get();
 
     for (final doc in otherClaims.docs) {
       if (doc.id != claimId) {

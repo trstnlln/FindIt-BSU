@@ -21,6 +21,17 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final _amountController = TextEditingController();
+  final _conditionController = TextEditingController();
+  final _q1Controller = TextEditingController();
+  final _a1Controller = TextEditingController();
+  final _q2Controller = TextEditingController();
+  final _a2Controller = TextEditingController();
+
+  /// Extra protection applies to found money and wallets/bags.
+  bool get _needsSecurity =>
+      _type == 'found' &&
+      (_category == 'Money' || _category == 'Bags / Wallets');
 
   String _type = 'lost';      // 'lost' or 'found'
   String? _category;          // selected category
@@ -42,24 +53,21 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     'Accessories',
     'Documents',
     'Water Bottle / Tumbler',
+    'Money',
     'Other',
   ];
 
   static const List<String> _campusLocations = [
     'Main Academic Building',
     'College of Engineering',
-    'College of Arts & Sciences',
     'College of Informatics & Computing Sciences',
-    'College of Industrial Technology',
-    'College of Nursing',
+    'College of Engineering Technology',
     'Library',
-    'Gymnasium',
+    'Sparta Gymnasium',
     'Canteen / Food Court',
     'Student Center',
     'Parking Area',
-    'Covered Court',
-    'Gate 1 Entrance',
-    'Gate 2 Entrance',
+    'Gate Entrance',
     'Other',
   ];
 
@@ -67,6 +75,12 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _amountController.dispose();
+    _conditionController.dispose();
+    _q1Controller.dispose();
+    _a1Controller.dispose();
+    _q2Controller.dispose();
+    _a2Controller.dispose();
     super.dispose();
   }
 
@@ -235,6 +249,20 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       location: _campusLocation!,
       date: _date,
       imageFile: _selectedImage,
+            secureDetails: _needsSecurity
+          ? {
+              'exactAmount': _amountController.text.trim(),
+              'foundCondition': _conditionController.text.trim(),
+              'questions': [
+                _q1Controller.text.trim(),
+                _q2Controller.text.trim(),
+              ],
+              'answers': [
+                _a1Controller.text.trim(),
+                _a2Controller.text.trim(),
+              ],
+            }
+          : null,
     );
 
     if (!mounted) return;
@@ -304,6 +332,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
               // ── Photo Upload Section ────────────────────────────────
               _buildPhotoUploadSection(colorScheme),
               const SizedBox(height: 16),
+              if (_needsSecurity) _buildSecuritySection(colorScheme),
 
               // ── Error Banner ────────────────────────────────────────
               if (_errorMessage != null) ...[
@@ -586,6 +615,72 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
           ],
         ),
       ),
+    );
+  }
+    /// Private fields shown only when reporting FOUND money / wallets.
+  Widget _buildSecuritySection(ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lock_outline_rounded,
+                  size: 18, color: colorScheme.primary),
+              const SizedBox(width: 8),
+              const Text(
+                'Private verification details',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Only you can see the answers. Do not mention the amount in the '
+            'title, description, or photo. Please hand the item over at the '
+            'Security Office and check the claimer\'s school ID.',
+            style: TextStyle(
+                fontSize: 12, color: colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 14),
+          _secureField(_amountController, 'Exact amount / contents',
+              'e.g. 2 x P500, 1 x P100'),
+          const SizedBox(height: 12),
+          _secureField(_conditionController, 'How was it found?',
+              'e.g. inside a brown envelope, folded'),
+          const SizedBox(height: 12),
+          _secureField(_q1Controller, 'Question 1 for the claimer',
+              'e.g. How much money was it?'),
+          const SizedBox(height: 12),
+          _secureField(_a1Controller, 'Correct answer 1', 'Kept private'),
+          const SizedBox(height: 12),
+          _secureField(_q2Controller, 'Question 2 for the claimer',
+              'e.g. What was it kept in?'),
+          const SizedBox(height: 12),
+          _secureField(_a2Controller, 'Correct answer 2', 'Kept private'),
+        ],
+      ),
+    );
+  }
+
+  Widget _secureField(
+      TextEditingController controller, String label, String hint) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      validator: (value) =>
+          (value == null || value.trim().isEmpty) ? 'Required' : null,
     );
   }
 

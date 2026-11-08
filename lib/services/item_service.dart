@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/item_model.dart';
 
 /// Handles all Firestore CRUD operations for the `items` collection.
@@ -11,21 +12,35 @@ class ItemService {
 
   // ─── Upload Photo ────────────────────────────────────────────────────────
 
-  /// Uploads an item image to Firebase Storage and returns its download URL.
+  /// Uploads an item image to Cloudinary and returns its public URL.
+  static const String _cloudName = 'pa77o7a4';
+  static const String _uploadPreset = 'finditbsu_unsigned';
+
   Future<String> uploadItemPhoto(XFile imageFile) async {
-    final ext = imageFile.name.contains('.')
-        ? imageFile.name.split('.').last.toLowerCase()
-        : 'jpg';
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
-    final ref =
-        FirebaseStorage.instance.ref().child('item_photos').child(fileName);
     final bytes = await imageFile.readAsBytes();
-    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
-    final uploadTask = await ref.putData(
-      bytes,
-      SettableMetadata(contentType: contentType),
+    final uri = Uri.parse(
+      'https://api.cloudinary.com/v1_1/$_cloudName/image/upload',
     );
-    return await uploadTask.ref.getDownloadURL();
+
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['upload_preset'] = _uploadPreset
+      ..files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: imageFile.name.isNotEmpty ? imageFile.name : 'upload.jpg',
+      ));
+
+    final streamed = await request.send().timeout(
+      const Duration(seconds: 30),
+    );
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Upload failed (${response.statusCode}): ${response.body}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['secure_url'] as String;
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
@@ -147,7 +162,51 @@ class ItemService {
     items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return items;
   }
+  // ─── Private verification details (for money / wallets) ─────────────────
 
+  /// Saves the verification questions (readable by claimers) and the secret
+  /// details + answers (readable only by the item owner).
+  Future<void> savePrivateDetails({
+    required String itemId,
+    required String exactAmount,
+    required String foundCondition,
+    required List<String> questions,
+    required List<String> answers,
+  }) async {
+    final itemDoc = _itemsRef.doc(itemId);
+
+    await itemDoc.collection('verification').doc('questions').set({
+      'questions': questions,
+    });
+
+    await itemDoc.collection('private').doc('details').set({
+      'exactAmount': exactAmount,
+      'foundCondition': foundCondition,
+      'answers': answers,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Questions the claimer must answer. Never includes the answers.
+  Future<List<String>> getVerificationQuestions(String itemId) async {
+    final doc = await _itemsRef
+        .doc(itemId)
+        .collection('verification')
+        .doc('questions')
+        .get();
+    if (!doc.exists || doc.data() == null) return [];
+    return List<String>.from(doc.data()!['questions'] ?? []);
+  }
+
+  /// Secret details. Only works for the item owner (blocked by rules otherwise).
+  Future<Map<String, dynamic>?> getPrivateDetails(String itemId) async {
+    final doc = await _itemsRef
+        .doc(itemId)
+        .collection('private')
+        .doc('details')
+        .get();
+    return doc.data();
+  }
   // ─── Update ───────────────────────────────────────────────────────────────
 
   /// Updates the status of an item ('open', 'claimed', or 'returned').

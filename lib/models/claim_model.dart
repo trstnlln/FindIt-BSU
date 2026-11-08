@@ -9,7 +9,8 @@ class ClaimModel {
   final String claimantName;  // Display name of the claimant
   final String claimantEmail; // Contact email of claimant
   final String message;       // General message from the claimant
-  final String proof;         // "Something only the owner would know"
+  final String proof;
+  final List<String> verificationAnswers;         // "Something only the owner would know"
   final String status;        // 'pending', 'approved', or 'rejected'
   final DateTime createdAt;   // Timestamp when the claim was submitted
   final DateTime? updatedAt;  // Timestamp when status was changed (nullable)
@@ -24,6 +25,7 @@ class ClaimModel {
     this.claimantEmail = '',
     this.message = '',
     required this.proof,
+    this.verificationAnswers = const [],
     required this.status,
     required this.createdAt,
     this.updatedAt,
@@ -43,6 +45,8 @@ class ClaimModel {
       claimantEmail: map['claimantEmail'] as String? ?? '',
       message: map['message'] as String? ?? '',
       proof: map['proof'] as String? ?? '',
+      verificationAnswers:
+        List<String>.from(map['verificationAnswers'] as List? ?? []),
       status: map['status'] as String? ?? 'pending',
       createdAt: _parseDateTime(map['createdAt']),
       updatedAt: map['updatedAt'] != null ? _parseDateTime(map['updatedAt']) : null,
@@ -63,6 +67,7 @@ class ClaimModel {
       'claimantEmail': claimantEmail,
       'message': message,
       'proof': proof,
+      'verificationAnswers': verificationAnswers,
       'status': status,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt?.millisecondsSinceEpoch,

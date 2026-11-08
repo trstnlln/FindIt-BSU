@@ -35,7 +35,9 @@ class ItemProvider extends ChangeNotifier {
   // ─── Create ───────────────────────────────────────────────────────────────
 
   /// Submits a new item report. If [imageFile] is provided, it is uploaded
-  /// to Firebase Storage and attached to the report.
+  /// to Cloudinary and attached to the report. If [secureDetails] is
+  /// provided (found money / wallets), private verification details are
+  /// saved separately so only the finder can read them.
   /// Returns an error message on failure, or null on success.
   Future<String?> reportItem({
     required String ownerId,
@@ -46,6 +48,7 @@ class ItemProvider extends ChangeNotifier {
     required String location,
     required DateTime date,
     XFile? imageFile,
+    Map<String, dynamic>? secureDetails,
   }) async {
     _setLoading(true);
     try {
@@ -64,12 +67,23 @@ class ItemProvider extends ChangeNotifier {
         date: date,
         photoUrl: photoUrl,
       );
+
+      // Save private verification details (money / wallets only)
+      if (secureDetails != null) {
+        await _itemService.savePrivateDetails(
+          itemId: _lastCreatedItem!.id,
+          exactAmount: secureDetails['exactAmount'] as String,
+          foundCondition: secureDetails['foundCondition'] as String,
+          questions: List<String>.from(secureDetails['questions'] as List),
+          answers: List<String>.from(secureDetails['answers'] as List),
+        );
+      }
       return null; // null = success
     } catch (e) {
-      return 'Failed to submit report. Please try again.';
+      debugPrint('reportItem error: $e');
+      return e.toString().replaceFirst('Exception: ', '');
     } finally {
       _setLoading(false);
     }
   }
 }
-

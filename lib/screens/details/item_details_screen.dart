@@ -1519,13 +1519,100 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  List<String> _questions = [];
+  final List<TextEditingController> _answerControllers = [];
+  bool _loadingQuestions = false;
+
+  /// Extra verification applies to found money and wallets/bags.
+  bool get _needsVerification =>
+      widget.item.type.toLowerCase() == 'found' &&
+      (widget.item.category.toLowerCase() == 'money' ||
+          widget.item.category.toLowerCase() == 'bags / wallets');
+
+  @override
+  void initState() {
+    super.initState();
+    if (_needsVerification) {
+      _loadQuestions();
+    }
+  }
+
+  Future<void> _loadQuestions() async {
+    setState(() => _loadingQuestions = true);
+    try {
+      final questions =
+          await ItemService().getVerificationQuestions(widget.item.id);
+      if (!mounted) return;
+      setState(() {
+        _questions = questions;
+        _answerControllers.clear();
+        _answerControllers
+            .addAll(questions.map((_) => TextEditingController()));
+      });
+    } catch (e) {
+      debugPrint('loadQuestions error: $e');
+      if (mounted) {
+        setState(() => _errorMessage = 'Could not load verification questions.');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingQuestions = false);
+    }
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
     _proofController.dispose();
+    for (final c in _answerControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
+    Widget _buildVerificationQuestions() {
+    if (!_needsVerification) return const SizedBox.shrink();
+    if (_loadingQuestions) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_questions.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Verification questions',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Answer from memory. The finder will compare your answers.',
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (int i = 0; i < _questions.length; i++) ...[
+          TextFormField(
+            controller: _answerControllers[i],
+            decoration: InputDecoration(
+              labelText: _questions[i],
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            validator: (value) => (value == null || value.trim().isEmpty)
+                ? 'Please answer this question.'
+                : null,
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+  
   Future<void> _submitClaim() async {
     FocusScope.of(context).unfocus();
     setState(() => _errorMessage = null);
@@ -1550,6 +1637,8 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
         claimantEmail: widget.currentUser.email,
         message: _messageController.text.trim(),
         proof: _proofController.text.trim(),
+        verificationAnswers:
+            _answerControllers.map((c) => c.text.trim()).toList(),
       );
 
       if (!mounted) return;
@@ -1669,6 +1758,9 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Verification questions (for found money / wallets)
+              _buildVerificationQuestions(),
 
               // 1. Message Field
               TextFormField(

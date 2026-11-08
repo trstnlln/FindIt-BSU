@@ -35,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'Electronics',
     'Clothing',
     'ID / Cards',
+    'Money',
     'Books / Notes',
     'Bags / Wallets',
     'Keys',
