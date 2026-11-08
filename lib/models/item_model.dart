@@ -1,17 +1,20 @@
 /// Represents a lost or found item report in FindIt BSU.
 /// Stored in Firestore under the `items` collection.
 class ItemModel {
-  final String id;           // Firestore document ID
-  final String type;         // 'lost' or 'found'
-  final String title;        // Short title of the item (e.g., "Black Wallet")
-  final String description;  // Detailed description of the item
-  final String category;     // e.g., 'Electronics', 'Clothing', 'ID / Cards'
-  final String location;     // Campus location where item was lost/found
-  final DateTime date;       // Date the item was lost or found
-  final String? photoUrl;    // Optional photo URL (Firebase Storage)
-  final String status;       // 'open', 'claimed', or 'returned'
-  final String ownerId;      // UID of the user who created this report
-  final DateTime createdAt;  // Timestamp when report was submitted
+  final String id;                     // Firestore document ID
+  final String type;                   // 'lost' or 'found'
+  final String title;                  // Short title of the item (e.g., "Black Wallet")
+  final String description;            // Detailed description of the item
+  final String category;               // e.g., 'Electronics', 'Clothing', 'ID / Cards'
+  final String location;               // Campus landmark / building (e.g., 'CICS')
+  final String? specificLocation;      // Optional floor / room details (e.g., '3rd Flr Rm 304')
+  final String? custodyLocation;       // If found & turned over (e.g., 'Gate 1 Guard Post')
+  final String? verificationQuestion;  // Anti-fraud blind proof prompt for found items
+  final DateTime date;                 // Date the item was lost or found
+  final String? photoUrl;              // Optional photo URL (Firebase Storage)
+  final String status;                 // 'open', 'claimed', or 'returned'
+  final String ownerId;                // UID of the user who created this report
+  final DateTime createdAt;            // Timestamp when report was submitted
 
   const ItemModel({
     required this.id,
@@ -20,6 +23,9 @@ class ItemModel {
     required this.description,
     required this.category,
     required this.location,
+    this.specificLocation,
+    this.custodyLocation,
+    this.verificationQuestion,
     required this.date,
     this.photoUrl,
     required this.status,
@@ -38,6 +44,9 @@ class ItemModel {
       description: map['description'] as String? ?? '',
       category: map['category'] as String? ?? 'Other',
       location: map['location'] as String? ?? '',
+      specificLocation: map['specificLocation'] as String?,
+      custodyLocation: map['custodyLocation'] as String?,
+      verificationQuestion: map['verificationQuestion'] as String?,
       date: _parseDateTime(map['date']),
       photoUrl: map['photoUrl'] as String?,
       status: map['status'] as String? ?? 'open',
@@ -69,6 +78,9 @@ class ItemModel {
       'description': description,
       'category': category,
       'location': location,
+      'specificLocation': specificLocation,
+      'custodyLocation': custodyLocation,
+      'verificationQuestion': verificationQuestion,
       'date': date.millisecondsSinceEpoch,
       'photoUrl': photoUrl,
       'status': status,
@@ -78,13 +90,15 @@ class ItemModel {
   }
 
   /// Returns a copy of this model with updated fields.
-  /// Useful for updating status or photo URL without mutating the original.
   ItemModel copyWith({
     String? type,
     String? title,
     String? description,
     String? category,
     String? location,
+    String? specificLocation,
+    String? custodyLocation,
+    String? verificationQuestion,
     DateTime? date,
     String? photoUrl,
     String? status,
@@ -96,6 +110,9 @@ class ItemModel {
       description: description ?? this.description,
       category: category ?? this.category,
       location: location ?? this.location,
+      specificLocation: specificLocation ?? this.specificLocation,
+      custodyLocation: custodyLocation ?? this.custodyLocation,
+      verificationQuestion: verificationQuestion ?? this.verificationQuestion,
       date: date ?? this.date,
       photoUrl: photoUrl ?? this.photoUrl,
       status: status ?? this.status,

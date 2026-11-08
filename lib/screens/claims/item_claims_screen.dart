@@ -244,12 +244,28 @@ class _ItemClaimsScreenState extends State<ItemClaimsScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Location: ${currentItem.location}',
+                            currentItem.specificLocation != null &&
+                                    currentItem.specificLocation!.trim().isNotEmpty
+                                ? 'Location: ${currentItem.location} • ${currentItem.specificLocation}'
+                                : 'Location: ${currentItem.location}',
                             style: TextStyle(
                               fontSize: 12,
                               color: colorScheme.onSurfaceVariant,
                             ),
                           ),
+                          if (currentItem.custodyLocation != null &&
+                              currentItem.custodyLocation!.trim().isNotEmpty &&
+                              currentItem.custodyLocation != 'With Finder (Not Surrendered)') ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Custody: ${currentItem.custodyLocation}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal.shade800,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

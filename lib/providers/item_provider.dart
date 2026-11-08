@@ -46,6 +46,9 @@ class ItemProvider extends ChangeNotifier {
     required String description,
     required String category,
     required String location,
+    String? specificLocation,
+    String? custodyLocation,
+    String? verificationQuestion,
     required DateTime date,
     XFile? imageFile,
     Map<String, dynamic>? secureDetails,
@@ -64,6 +67,9 @@ class ItemProvider extends ChangeNotifier {
         description: description,
         category: category,
         location: location,
+        specificLocation: specificLocation,
+        custodyLocation: custodyLocation,
+        verificationQuestion: verificationQuestion,
         date: date,
         photoUrl: photoUrl,
       );
@@ -80,8 +86,13 @@ class ItemProvider extends ChangeNotifier {
       }
       return null; // null = success
     } catch (e) {
+<<<<<<< HEAD
       debugPrint('reportItem error: $e');
       return e.toString().replaceFirst('Exception: ', '');
+=======
+      final msg = e.toString().replaceAll('Exception: ', '').trim();
+      return msg.isNotEmpty ? msg : 'Failed to submit report. Please try again.';
+>>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
     } finally {
       _setLoading(false);
     }

@@ -279,7 +279,10 @@ class _MyActivityScreenState extends State<MyActivityScreen> {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      item.location,
+                      item.specificLocation != null &&
+                              item.specificLocation!.trim().isNotEmpty
+                          ? '${item.location} • ${item.specificLocation}'
+                          : item.location,
                       style: TextStyle(
                         fontSize: 12,
                         color: colorScheme.onSurfaceVariant,

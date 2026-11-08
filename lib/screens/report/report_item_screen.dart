@@ -4,11 +4,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/item_provider.dart';
+import '../../utils/helpers.dart';
 
 /// Screen where users fill out a form to report a lost or found item.
 ///
 /// Fields: type (lost/found), title, description, category dropdown,
-/// campus location dropdown, date picker, and photo upload.
+/// campus landmark, room/floor details, custody location (for found items),
+/// verification question (for found items), date picker, and photo upload.
 class ReportItemScreen extends StatefulWidget {
   const ReportItemScreen({super.key});
 
@@ -20,6 +22,8 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _specificLocationController = TextEditingController();
+  final _verificationQuestionController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final _amountController = TextEditingController();
   final _conditionController = TextEditingController();
@@ -33,14 +37,16 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       _type == 'found' &&
       (_category == 'Money' || _category == 'Bags / Wallets');
 
-  String _type = 'lost';      // 'lost' or 'found'
-  String? _category;          // selected category
-  String? _campusLocation;    // selected campus location
-  DateTime _date = DateTime.now(); // default to today
-  XFile? _selectedImage;      // picked image file
-  Uint8List? _selectedImageBytes; // bytes for preview across all platforms
+  String _type = 'lost';              // 'lost' or 'found'
+  String? _category;                  // selected category
+  String? _campusLocation;            // selected campus location
+  String? _custodyLocation;           // where surrendered (e.g. Guard Post)
+  DateTime _date = DateTime.now();     // default to today
+  XFile? _selectedImage;              // picked image file
+  Uint8List? _selectedImageBytes;     // bytes for preview across all platforms
   String? _errorMessage;
 
+<<<<<<< HEAD
   // ── Dropdown options ──────────────────────────────────────────────────────
 
   static const List<String> _categories = [
@@ -71,16 +77,23 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     'Other',
   ];
 
+=======
+>>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+<<<<<<< HEAD
     _amountController.dispose();
     _conditionController.dispose();
     _q1Controller.dispose();
     _a1Controller.dispose();
     _q2Controller.dispose();
     _a2Controller.dispose();
+=======
+    _specificLocationController.dispose();
+    _verificationQuestionController.dispose();
+>>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
     super.dispose();
   }
 
@@ -247,6 +260,16 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       description: _descriptionController.text.trim(),
       category: _category!,
       location: _campusLocation!,
+      specificLocation: _specificLocationController.text.trim().isNotEmpty
+          ? _specificLocationController.text.trim()
+          : null,
+      custodyLocation: _type == 'found' && _custodyLocation != null
+          ? _custodyLocation
+          : null,
+      verificationQuestion: _type == 'found' &&
+              _verificationQuestionController.text.trim().isNotEmpty
+          ? _verificationQuestionController.text.trim()
+          : null,
       date: _date,
       imageFile: _selectedImage,
             secureDetails: _needsSecurity
@@ -278,6 +301,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
                 ? 'Lost item report submitted!'
                 : 'Found item report submitted!',
           ),
+          backgroundColor: Colors.green.shade800,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -290,8 +314,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final isLoading = context.watch<ItemProvider>().isLoading;
 
     return Scaffold(
@@ -321,9 +344,21 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
               _buildCategoryDropdown(),
               const SizedBox(height: 16),
 
-              // ── Campus Location Dropdown ────────────────────
+              // ── Campus Location Dropdown ────────────────────────────
               _buildLocationDropdown(),
               const SizedBox(height: 16),
+
+              // ── Specific Room / Floor Field ─────────────────────────
+              _buildSpecificLocationField(),
+              const SizedBox(height: 16),
+
+              // ── Found Item Specials: Custody & Blind Verification Question
+              if (_type == 'found') ...[
+                _buildCustodyDropdown(),
+                const SizedBox(height: 16),
+                _buildVerificationQuestionField(colorScheme),
+                const SizedBox(height: 16),
+              ],
 
               // ── Date Picker ─────────────────────────────────────────
               _buildDatePicker(colorScheme),
@@ -370,7 +405,13 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       ],
       selected: {_type},
       onSelectionChanged: (selection) {
-        setState(() => _type = selection.first);
+        setState(() {
+          _type = selection.first;
+          if (_type == 'lost') {
+            _custodyLocation = null;
+            _verificationQuestionController.clear();
+          }
+        });
       },
       showSelectedIcon: false,
       style: ButtonStyle(
@@ -388,7 +429,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       textCapitalization: TextCapitalization.words,
       decoration: InputDecoration(
         labelText: 'Item title',
-        hintText: 'e.g. Blue Umbrella, Black Wallet',
+        hintText: 'e.g. Blue Umbrella, Black Wallet, TI-84 Calculator',
         prefixIcon: const Icon(Icons.title_rounded),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -412,7 +453,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       maxLines: 4,
       decoration: InputDecoration(
         labelText: 'Description',
-        hintText: 'Color, brand, distinguishing marks, etc.',
+        hintText: 'Color, brand, distinguishing marks, sticker, case details...',
         alignLabelWithHint: true,
         prefixIcon: const Padding(
           padding: EdgeInsets.only(bottom: 60),
@@ -440,7 +481,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
         prefixIcon: const Icon(Icons.category_outlined),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      items: _categories
+      items: itemCategories
           .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
           .toList(),
       onChanged: (value) => setState(() => _category = value),
@@ -462,7 +503,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       isExpanded: true,
-      items: _campusLocations
+      items: campusLocations
           .map((loc) => DropdownMenuItem(value: loc, child: Text(loc)))
           .toList(),
       onChanged: (value) => setState(() => _campusLocation = value),
@@ -472,6 +513,82 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
         }
         return null;
       },
+    );
+  }
+
+  Widget _buildSpecificLocationField() {
+    return TextFormField(
+      controller: _specificLocationController,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: 'Floor / Room / Area (Optional)',
+        hintText: 'e.g. 3rd Floor Rm 304, Drafting Table 4, Canteen Table #5',
+        prefixIcon: const Icon(Icons.meeting_room_outlined),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Widget _buildCustodyDropdown() {
+    return DropdownButtonFormField<String>(
+      initialValue: _custodyLocation,
+      decoration: InputDecoration(
+        labelText: 'Custody / Where did you turn it over? (Optional)',
+        prefixIcon: const Icon(Icons.shield_outlined),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      isExpanded: true,
+      items: custodyLocations
+          .map((loc) => DropdownMenuItem(value: loc, child: Text(loc)))
+          .toList(),
+      onChanged: (value) => setState(() => _custodyLocation = value),
+    );
+  }
+
+  Widget _buildVerificationQuestionField(ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.vpn_key_rounded, size: 16, color: Colors.amber.shade900),
+              const SizedBox(width: 6),
+              Text(
+                'Anti-Fraud Verification Question (Recommended)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber.shade900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Ask something only the true owner would know to prevent fraudulent claims.',
+            style: TextStyle(fontSize: 11, color: Colors.brown.shade800),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _verificationQuestionController,
+            decoration: InputDecoration(
+              hintText: 'e.g. What sticker/wallpaper/item inside the wallet?',
+              hintStyle: const TextStyle(fontSize: 12),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -545,19 +662,13 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
               Positioned(
                 top: 8,
                 right: 8,
-                child: InkWell(
-                  onTap: _removeImage,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
+                child: Material(
+                  color: Colors.black54,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                    tooltip: 'Remove photo',
+                    onPressed: _removeImage,
                   ),
                 ),
               ),
@@ -567,52 +678,48 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       );
     }
 
-    // No image selected — show upload prompt
+    // No photo selected — show tap-to-upload area
     return InkWell(
       onTap: _showImageSourcePicker,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        height: 110,
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+            color: colorScheme.outlineVariant,
             style: BorderStyle.solid,
           ),
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
                 Icons.add_a_photo_outlined,
-                size: 28,
+                size: 32,
                 color: colorScheme.primary,
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Add Photo (Optional)',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: colorScheme.onSurface,
+              const SizedBox(height: 6),
+              Text(
+                'Add Photo (Optional)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: colorScheme.primary,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Take a picture or choose from gallery',
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onSurfaceVariant,
+              const SizedBox(height: 2),
+              Text(
+                'Photos help others identify your item faster',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -714,26 +821,22 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   }
 
   Widget _buildSubmitButton(bool isLoading) {
-    final hasPhoto = _selectedImage != null;
-    return FilledButton.icon(
+    return FilledButton(
       onPressed: isLoading ? null : _submit,
-      icon: isLoading
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-            )
-          : const Icon(Icons.send_rounded),
-      label: Text(
-        isLoading
-            ? (hasPhoto ? 'Uploading photo & submitting…' : 'Submitting…')
-            : 'Submit Report',
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
+      child: isLoading
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+            )
+          : Text(
+              _type == 'lost' ? 'Submit Lost Report' : 'Submit Found Report',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
     );
   }
 }

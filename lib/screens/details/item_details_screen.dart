@@ -7,6 +7,8 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/claim_service.dart';
 import '../../services/item_service.dart';
+import '../../utils/helpers.dart';
+import '../../widgets/cached_image.dart';
 import '../claims/item_claims_screen.dart';
 
 /// Screen displaying the complete details of a lost or found item,
@@ -97,6 +99,212 @@ class ItemDetailsScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showFlyerDialog(BuildContext context, ItemModel item) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLost = item.type.toLowerCase() == 'lost';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // BSU Alangilan Header Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isLost ? const Color(0xFF8B0000) : const Color(0xFF006666),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'BATANGAS STATE UNIVERSITY',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isLost ? 'LOST ITEM NOTICE' : 'FOUND ITEM NOTICE',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const Text(
+                      'The National Engineering University • Alangilan Campus',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (item.photoUrl != null && item.photoUrl!.isNotEmpty)
+                      CachedImage(
+                        imageUrl: item.photoUrl,
+                        width: 130,
+                        height: 130,
+                        borderRadius: 12,
+                      )
+                    else
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          getCategoryIcon(item.category),
+                          size: 44,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${item.location}${item.specificLocation != null && item.specificLocation!.isNotEmpty ? " • ${item.specificLocation}" : ""}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        item.description,
+                        style: const TextStyle(fontSize: 11, color: Colors.black87, height: 1.3),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.qr_code_2_rounded, size: 28, color: colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Reported on FindIt BSU',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                              Text(
+                                'ID: ${item.id.isNotEmpty ? (item.id.length < 8 ? item.id : item.id.substring(0, 8)) : "NEW"}',
+                                style: const TextStyle(fontSize: 9, color: Colors.black45),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              final flyerText = '========================================\n'
+                                  '  BATANGAS STATE UNIVERSITY - ALANGILAN\n'
+                                  '       ${isLost ? "LOST ITEM NOTICE" : "FOUND ITEM NOTICE"}\n'
+                                  '========================================\n'
+                                  'Item: ${item.title}\n'
+                                  'Category: ${item.category}\n'
+                                  'Campus Location: ${item.location}\n'
+                                  '${item.specificLocation != null ? "Room / Area: ${item.specificLocation}\n" : ""}'
+                                  'Date: ${formatDate(item.date)}\n'
+                                  'Details: ${item.description}\n'
+                                  '========================================\n'
+                                  'Found or claim on FindIt BSU App\n';
+                              Clipboard.setData(ClipboardData(text: flyerText));
+                              Navigator.of(ctx).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Printable bulletin text copied to clipboard!'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.copy_rounded, size: 16),
+                            label: const Text('Copy Flyer Text'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Done'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -328,6 +536,11 @@ class ItemDetailsScreen extends StatelessWidget {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.print_outlined),
+                tooltip: 'Generate Printable Flyer',
+                onPressed: () => _showFlyerDialog(context, currentItem),
+              ),
+              IconButton(
                 icon: const Icon(Icons.share_outlined),
                 tooltip: 'Copy item details',
                 onPressed: () {
@@ -458,6 +671,63 @@ class ItemDetailsScreen extends StatelessWidget {
                   ),
                 ),
 
+                if (currentItem.custodyLocation != null &&
+                    currentItem.custodyLocation!.trim().isNotEmpty &&
+                    currentItem.custodyLocation != 'With Finder (Not Surrendered)') ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    elevation: 0,
+                    color: Colors.teal.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: Colors.teal.shade300),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.shield_rounded, color: Colors.teal.shade800, size: 28),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Surrendered to Campus Custody',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Colors.teal.shade900,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Custody Post: ${currentItem.custodyLocation}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.teal.shade800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'This item is physically held at ${currentItem.custodyLocation}. When claiming in person, present your official BatState-U Student/Faculty ID and mention this FindIt report.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.teal.shade900,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 16),
 
                 // ── Item Photo Card (if photo uploaded) ────────────────────
@@ -478,46 +748,12 @@ class ItemDetailsScreen extends StatelessWidget {
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         children: [
-                          Image.network(
-                            currentItem.photoUrl!,
+                          CachedImage(
+                            imageUrl: currentItem.photoUrl,
                             height: 240,
                             width: double.infinity,
+                            borderRadius: 20,
                             fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) return child;
-                              return Container(
-                                height: 240,
-                                color: colorScheme.surfaceContainerHighest,
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                              height: 160,
-                              color: colorScheme.surfaceContainerHighest,
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.broken_image_rounded,
-                                      size: 40,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Failed to load photo',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
                           ),
                           Container(
                             margin: const EdgeInsets.all(12),
@@ -600,6 +836,37 @@ class ItemDetailsScreen extends StatelessWidget {
                           value: _formatDate(currentItem.createdAt),
                           colorScheme: colorScheme,
                         ),
+                        if (currentItem.specificLocation != null &&
+                            currentItem.specificLocation!.trim().isNotEmpty) ...[
+                          const Divider(height: 24),
+                          _buildDetailTile(
+                            icon: Icons.meeting_room_outlined,
+                            label: 'Floor / Room / Area',
+                            value: currentItem.specificLocation!,
+                            colorScheme: colorScheme,
+                          ),
+                        ],
+                        if (currentItem.custodyLocation != null &&
+                            currentItem.custodyLocation!.trim().isNotEmpty &&
+                            currentItem.custodyLocation != 'With Finder (Not Surrendered)') ...[
+                          const Divider(height: 24),
+                          _buildDetailTile(
+                            icon: Icons.shield_outlined,
+                            label: 'Custody / Turn-in Post',
+                            value: currentItem.custodyLocation!,
+                            colorScheme: colorScheme,
+                          ),
+                        ],
+                        if (currentItem.verificationQuestion != null &&
+                            currentItem.verificationQuestion!.trim().isNotEmpty) ...[
+                          const Divider(height: 24),
+                          _buildDetailTile(
+                            icon: Icons.vpn_key_rounded,
+                            label: 'Anti-Fraud Verification Prompt',
+                            value: currentItem.verificationQuestion!,
+                            colorScheme: colorScheme,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1789,6 +2056,48 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
                 },
               ),
               const SizedBox(height: 16),
+
+              if (widget.item.verificationQuestion != null &&
+                  widget.item.verificationQuestion!.trim().isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.vpn_key_rounded,
+                              size: 16, color: Colors.amber.shade900),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Finder\'s Anti-Fraud Prompt:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.item.verificationQuestion!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.brown.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // 2. Secret Proof Field ("Something only the owner would know")
               TextFormField(

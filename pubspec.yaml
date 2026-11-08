@@ -20,7 +20,11 @@ dependencies:
   # State management
   provider: ^6.1.2
   image_picker: ^1.2.4
+<<<<<<< HEAD
   http: ^1.6.0
+=======
+  cached_network_image: ^4.0.6
+>>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
 
 dev_dependencies:
   flutter_test:

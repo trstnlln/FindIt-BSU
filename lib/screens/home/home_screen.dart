@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/item_service.dart';
+import '../../utils/helpers.dart';
+import '../../widgets/empty_state_view.dart';
+import '../../widgets/item_card.dart';
 import '../activity/my_activity_screen.dart';
-import '../details/item_details_screen.dart';
 import '../profile/profile_screen.dart';
 import '../report/report_item_screen.dart';
 
@@ -31,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedStatus; // null = All, 'open', 'claimed', 'returned'
   DateTime? _selectedDate;
 
+<<<<<<< HEAD
   static const List<String> _categories = [
     'Electronics',
     'Clothing',
@@ -69,6 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
     {'value': 'returned', 'label': 'Returned'},
   ];
 
+=======
+>>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
   bool get _hasActiveFilters =>
       _searchQuery.isNotEmpty ||
       _selectedCategory != null ||
@@ -155,9 +160,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: _categories.length,
+                  itemCount: itemCategories.length,
                   itemBuilder: (context, index) {
-                    final cat = _categories[index];
+                    final cat = itemCategories[index];
                     final isSelected = _selectedCategory == cat;
                     return ListTile(
                       title: Text(cat),
@@ -219,9 +224,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: _campusLocations.length,
+                  itemCount: campusLocations.length,
                   itemBuilder: (context, index) {
-                    final loc = _campusLocations[index];
+                    final loc = campusLocations[index];
                     final isSelected = _selectedLocation == loc;
                     return ListTile(
                       title: Text(loc),
@@ -276,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const Divider(height: 1),
-              ..._statuses.map((s) {
+              ...itemStatuses.map((s) {
                 final isSelected = _selectedStatus == s['value'];
                 return ListTile(
                   title: Text(s['label']!),
@@ -477,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : null;
 
     final statusLabel = _selectedStatus != null
-        ? _statuses.firstWhere((s) => s['value'] == _selectedStatus)['label']
+        ? itemStatuses.firstWhere((s) => s['value'] == _selectedStatus)['label']
         : null;
 
     return Container(
@@ -498,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
             textInputAction: TextInputAction.search,
             onChanged: (val) => setState(() => _searchQuery = val.trim()),
             decoration: InputDecoration(
-              hintText: 'Search by keyword (title, desc, item)...',
+              hintText: 'Search by keyword (title, desc, room)...',
               hintStyle: TextStyle(
                 fontSize: 13,
                 color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
@@ -812,64 +817,33 @@ class _ItemStreamList extends StatelessWidget {
 
         // Base empty state (no items reported at all in this tab)
         if (allItems.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isLost
-                          ? Icons.search_off_rounded
-                          : Icons.check_circle_outline_rounded,
-                      size: 38,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    isLost ? 'No Lost Items Reported' : 'No Found Items Reported',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isLost
-                        ? 'Items reported as lost will appear here in real time.'
-                        : 'Items reported as found will appear here in real time.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          return EmptyStateView(
+            icon: isLost ? Icons.search_off_rounded : Icons.check_circle_outline_rounded,
+            title: isLost ? 'No Lost Items Reported' : 'No Found Items Reported',
+            subtitle: isLost
+                ? 'Items reported as lost will appear here in real time.'
+                : 'Items reported as found will appear here in real time.',
           );
         }
 
         // Apply Search & Filters
         final filteredItems = allItems.where((item) {
-          // 1. Keyword search (matches title, description, category, or location)
+          // 1. Keyword search (matches title, description, category, location, or room)
           if (searchQuery.isNotEmpty) {
             final q = searchQuery.toLowerCase();
             final matchesTitle = item.title.toLowerCase().contains(q);
             final matchesDesc = item.description.toLowerCase().contains(q);
             final matchesCat = item.category.toLowerCase().contains(q);
             final matchesLoc = item.location.toLowerCase().contains(q);
-            if (!matchesTitle && !matchesDesc && !matchesCat && !matchesLoc) {
+            final matchesSpecific = item.specificLocation?.toLowerCase().contains(q) ?? false;
+            final matchesCustody = item.custodyLocation?.toLowerCase().contains(q) ?? false;
+
+            if (!matchesTitle &&
+                !matchesDesc &&
+                !matchesCat &&
+                !matchesLoc &&
+                !matchesSpecific &&
+                !matchesCustody) {
               return false;
             }
           }
@@ -909,340 +883,30 @@ class _ItemStreamList extends StatelessWidget {
 
         // Filtered empty state (items exist, but none match criteria)
         if (filteredItems.isEmpty && _isFiltering) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 68,
-                    height: 68,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest
-                          .withValues(alpha: 0.6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.filter_alt_off_rounded,
-                      size: 34,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'No Matching Items Found',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Try adjusting your search query, category, location, status, or date filter.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: onResetFilters,
-                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                    label: const Text('Reset Search & Filters'),
-                  ),
-                ],
-              ),
+          return EmptyStateView(
+            icon: Icons.filter_alt_off_rounded,
+            title: 'No Matching Items Found',
+            subtitle:
+                'Try adjusting your search query, category, location, status, or date filter.',
+            actionButton: OutlinedButton.icon(
+              onPressed: onResetFilters,
+              icon: const Icon(Icons.restart_alt_rounded, size: 16),
+              label: const Text('Reset Search & Filters'),
             ),
           );
         }
 
-        // Populated List
+        // Populated List using extracted modular ItemCard
         return ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           itemCount: filteredItems.length,
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final item = filteredItems[index];
-            return _ItemCard(item: item);
+            return ItemCard(item: item);
           },
         );
       },
-    );
-  }
-}
-
-/// A card representing a single item in the feed.
-class _ItemCard extends StatelessWidget {
-  final ItemModel item;
-
-  const _ItemCard({required this.item});
-
-  String _formatDate(DateTime dt) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-  }
-
-  String _formatTimeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.month}/${dt.day}/${dt.year}';
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'electronics':
-        return Icons.devices_rounded;
-      case 'clothing':
-        return Icons.checkroom_rounded;
-      case 'id / cards':
-        return Icons.badge_outlined;
-      case 'books / notes':
-        return Icons.menu_book_rounded;
-      case 'bags / wallets':
-        return Icons.wallet_rounded;
-      case 'keys':
-        return Icons.key_rounded;
-      case 'accessories':
-        return Icons.watch_outlined;
-      case 'documents':
-        return Icons.description_outlined;
-      case 'water bottle / tumbler':
-        return Icons.local_drink_rounded;
-      default:
-        return Icons.category_rounded;
-    }
-  }
-
-  Color _getStatusColor(String status, ColorScheme colorScheme) {
-    switch (status.toLowerCase()) {
-      case 'open':
-        return colorScheme.primary;
-      case 'claimed':
-        return Colors.orange.shade800;
-      case 'returned':
-        return Colors.green.shade700;
-      default:
-        return colorScheme.outline;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final statusColor = _getStatusColor(item.status, colorScheme);
-    final hasPhoto = item.photoUrl != null && item.photoUrl!.isNotEmpty;
-
-    return Card(
-      elevation: 0,
-      color: colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ItemDetailsScreen(item: item),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Photo Thumbnail or Category Icon Placeholder
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: hasPhoto
-                    ? Image.network(
-                        item.photoUrl!,
-                        width: 78,
-                        height: 78,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) {
-                          if (progress == null) return child;
-                          return Container(
-                            width: 78,
-                            height: 78,
-                            color: colorScheme.surfaceContainerHighest,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) =>
-                            _buildCategoryAvatar(colorScheme),
-                      )
-                    : _buildCategoryAvatar(colorScheme),
-              ),
-
-              const SizedBox(width: 12),
-
-              // Item Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title + Status Chip
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            item.status.toUpperCase(),
-                            style: TextStyle(
-                              color: statusColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    // Category
-                    Row(
-                      children: [
-                        Icon(
-                          _getCategoryIcon(item.category),
-                          size: 14,
-                          color: colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            item.category,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: colorScheme.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Location
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            item.location,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Date & Relative Time Ago
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 13,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_formatDate(item.date)} • ${_formatTimeAgo(item.createdAt)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color:
-                              colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryAvatar(ColorScheme colorScheme) {
-    return Container(
-      width: 78,
-      height: 78,
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Icon(
-          _getCategoryIcon(item.category),
-          size: 32,
-          color: colorScheme.primary,
-        ),
-      ),
     );
   }
 }
