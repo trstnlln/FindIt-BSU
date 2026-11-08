@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
 import 'register_screen.dart';
+import '../../widgets/brand_logo.dart';
 
 /// Login screen — authenticates existing users with email and password.
 class LoginScreen extends StatefulWidget {
@@ -33,8 +35,10 @@ class _LoginScreenState extends State<LoginScreen>
       duration: const Duration(milliseconds: 800),
     );
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _slideUp = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _slideUp = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
   }
 
@@ -49,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen>
   // ─── Actions ────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
+    if (context.read<AuthProvider>().isLoading) return;
     // Hide keyboard
     FocusScope.of(context).unfocus();
 
@@ -68,18 +73,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  Future<void> _quickDemoLogin() async {
-    FocusScope.of(context).unfocus();
-    setState(() => _errorMessage = null);
-
-    final authProvider = context.read<AuthProvider>();
-    final error = await authProvider.loginAsDemoUser();
-
-    if (error != null && mounted) {
-      setState(() => _errorMessage = error);
-    }
-  }
-
   void _goToRegister() {
     Navigator.of(context).push(
       PageRouteBuilder(
@@ -87,10 +80,13 @@ class _LoginScreenState extends State<LoginScreen>
             const RegisterScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) =>
             SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(1, 0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(1, 0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                  ),
               child: child,
             ),
       ),
@@ -112,140 +108,101 @@ class _LoginScreenState extends State<LoginScreen>
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
           child: FadeTransition(
             opacity: _fadeIn,
-            child: SlideTransition(
-              position: _slideUp,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 32),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: SlideTransition(
+                  position: _slideUp,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 32),
 
-                  // ── Logo & Branding ──────────────────────────────────
-                  _buildLogo(colorScheme),
-                  const SizedBox(height: 40),
+                      // ── Logo & Branding ──────────────────────────────────
+                      _buildLogo(colorScheme),
+                      const SizedBox(height: 40),
 
-                  // ── Form Card ────────────────────────────────────────
-                  Card(
-                    elevation: 0,
-                    color: colorScheme.surfaceContainerLow,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Welcome back!',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Log in to your FindIt BSU account.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Email field
-                            _buildEmailField(colorScheme),
-                            const SizedBox(height: 16),
-
-                            // Password field
-                            _buildPasswordField(colorScheme),
-                            const SizedBox(height: 12),
-
-                            // Error banner
-                            if (_errorMessage != null) ...[
-                              _buildErrorBanner(_errorMessage!),
-                              const SizedBox(height: 12),
-                            ],
-
-                            // Login button
-                            _buildLoginButton(isLoading, colorScheme),
-
-                            const SizedBox(height: 16),
-
-                            // Divider
-                            Row(
+                      // ── Form Card ────────────────────────────────────────
+                      Card(
+                        elevation: 0,
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Expanded(
-                                  child: Divider(
-                                    color: colorScheme.outlineVariant
-                                        .withValues(alpha: 0.5),
+                                Text(
+                                  'A little lost? We can help.',
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Sign in to reconnect with what matters.',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  child: Text(
-                                    'OR',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Divider(
-                                    color: colorScheme.outlineVariant
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                ),
+                                const SizedBox(height: 24),
+
+                                // Email field
+                                _buildEmailField(colorScheme),
+                                const SizedBox(height: 16),
+
+                                // Password field
+                                _buildPasswordField(colorScheme),
+                                const SizedBox(height: 12),
+
+                                // Error banner
+                                if (_errorMessage != null) ...[
+                                  _buildErrorBanner(_errorMessage!),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Login button
+                                _buildLoginButton(isLoading, colorScheme),
                               ],
                             ),
-
-                            const SizedBox(height: 16),
-
-                            // Quick Demo Login
-                            OutlinedButton.icon(
-                              onPressed: isLoading ? null : _quickDemoLogin,
-                              icon: const Icon(Icons.flash_on_rounded, size: 18),
-                              label: const Text('Quick Demo Login (Student)'),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ── Register Link ────────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Don't have an account? ",
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: isLoading ? null : _goToRegister,
-                        child: Text(
-                          'Register',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
+
+                      const SizedBox(height: 20),
+
+                      // ── Register Link ────────────────────────────────────
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            "Don't have an account? ",
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: isLoading ? null : _goToRegister,
+                            child: Text(
+                              'Register',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -259,24 +216,12 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildLogo(ColorScheme colorScheme) {
     return Column(
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.search_rounded,
-            size: 44,
-            color: colorScheme.primary,
-          ),
-        ),
+        const BrandLogo(size: 88),
         const SizedBox(height: 16),
         Text(
           'FindIt BSU',
           style: TextStyle(
-            fontSize: 30,
+            fontSize: 34,
             fontWeight: FontWeight.w900,
             color: colorScheme.primary,
             letterSpacing: -0.5,
@@ -284,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         const SizedBox(height: 4),
         Text(
-          'Alangilan Campus Lost & Found',
+          'Lost things. Found together.',
           style: TextStyle(
             fontSize: 13,
             color: colorScheme.onSurfaceVariant,
@@ -301,8 +246,10 @@ class _LoginScreenState extends State<LoginScreen>
       keyboardType: TextInputType.emailAddress,
       textInputAction: TextInputAction.next,
       autocorrect: false,
+      autofillHints: const [AutofillHints.email],
       decoration: InputDecoration(
-        labelText: 'Email address (@g.batstate-u.edu.ph)',
+        labelText: 'University email',
+        hintText: 'you@g.batstate-u.edu.ph',
         prefixIcon: const Icon(Icons.email_outlined),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -327,6 +274,7 @@ class _LoginScreenState extends State<LoginScreen>
     return TextFormField(
       controller: _passwordController,
       obscureText: _obscurePassword,
+      autofillHints: const [AutofillHints.password],
       textInputAction: TextInputAction.done,
       onFieldSubmitted: (_) => _submit(),
       decoration: InputDecoration(
@@ -335,7 +283,9 @@ class _LoginScreenState extends State<LoginScreen>
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            _obscurePassword
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
           ),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
           tooltip: _obscurePassword ? 'Show password' : 'Hide password',
@@ -390,7 +340,10 @@ class _LoginScreenState extends State<LoginScreen>
           ? const SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.white,
+              ),
             )
           : const Text(
               'Log In',

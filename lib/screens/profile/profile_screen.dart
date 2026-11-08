@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/claim_service.dart';
@@ -7,7 +8,7 @@ import '../../services/item_service.dart';
 
 /// Campus Hub / User Profile screen displaying user account details,
 /// activity summary counters, BSU Alangilan lost & found guidelines,
-/// role switcher for demo testing, and logout.
+/// and logout.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -19,15 +20,13 @@ class ProfileScreen extends StatelessWidget {
     final user = authProvider.currentUser;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Campus Hub & Profile',
+          'Your campus space',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -55,10 +54,6 @@ class ProfileScreen extends StatelessWidget {
             _buildCampusGuideCard(colorScheme, theme),
             const SizedBox(height: 16),
 
-            // ── Demo Role Switcher ────────────────────────────────────
-            _buildRoleSwitcher(context, authProvider, user, colorScheme, theme),
-            const SizedBox(height: 24),
-
             // ── Logout Button ─────────────────────────────────────────
             OutlinedButton.icon(
               onPressed: () => _confirmLogout(context, authProvider),
@@ -85,7 +80,11 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserHeader(UserModel user, ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildUserHeader(
+    UserModel user,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
     final roleLabel = user.role.toUpperCase();
 
     return Card(
@@ -134,7 +133,10 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -161,7 +163,11 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsCard(String userId, ColorScheme colorScheme, ThemeData theme) {
+  Widget _buildStatsCard(
+    String userId,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
     final itemService = ItemService();
     final claimService = ClaimService();
 
@@ -170,7 +176,9 @@ class ProfileScreen extends StatelessWidget {
       builder: (context, itemsSnapshot) {
         final reports = itemsSnapshot.data ?? [];
         final reportsCount = reports.length;
-        final resolvedCount = reports.where((i) => i.status == 'returned').length;
+        final resolvedCount = reports
+            .where((i) => i.status == 'returned')
+            .length;
 
         return StreamBuilder<List>(
           stream: claimService.getClaimsByClaimantStream(userId),
@@ -190,11 +198,26 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(18),
                 child: Row(
                   children: [
-                    _buildStatItem('Reports', reportsCount.toString(), Icons.assignment_outlined, colorScheme),
+                    _buildStatItem(
+                      'Reports',
+                      reportsCount.toString(),
+                      Icons.assignment_outlined,
+                      colorScheme,
+                    ),
                     _buildDivider(colorScheme),
-                    _buildStatItem('Resolved', resolvedCount.toString(), Icons.check_circle_outline, colorScheme),
+                    _buildStatItem(
+                      'Resolved',
+                      resolvedCount.toString(),
+                      Icons.check_circle_outline,
+                      colorScheme,
+                    ),
                     _buildDivider(colorScheme),
-                    _buildStatItem('Claims', claimsCount.toString(), Icons.verified_user_outlined, colorScheme),
+                    _buildStatItem(
+                      'Claims',
+                      claimsCount.toString(),
+                      Icons.verified_user_outlined,
+                      colorScheme,
+                    ),
                   ],
                 ),
               ),
@@ -205,7 +228,12 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, ColorScheme colorScheme) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    ColorScheme colorScheme,
+  ) {
     return Expanded(
       child: Column(
         children: [
@@ -221,10 +249,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -256,7 +281,11 @@ class ProfileScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.shield_outlined, color: colorScheme.primary, size: 20),
+                Icon(
+                  Icons.shield_outlined,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'BSU Alangilan Campus Info',
@@ -293,7 +322,12 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGuideBullet(IconData icon, String title, String desc, ColorScheme colorScheme) {
+  Widget _buildGuideBullet(
+    IconData icon,
+    String title,
+    String desc,
+    ColorScheme colorScheme,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -322,104 +356,6 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildRoleSwitcher(
-    BuildContext context,
-    AuthProvider authProvider,
-    UserModel user,
-    ColorScheme colorScheme,
-    ThemeData theme,
-  ) {
-    return Card(
-      elevation: 0,
-      color: colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.swap_horiz_rounded, color: colorScheme.primary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Quick Role Test Switcher',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Switch roles instantly to test permissions and features as a Student, Teacher, or Staff.',
-              style: TextStyle(
-                fontSize: 12,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildRoleChip(context, authProvider, 'student', 'Student', Icons.school_outlined, user.role == 'student', colorScheme),
-                const SizedBox(width: 8),
-                _buildRoleChip(context, authProvider, 'teacher', 'Teacher', Icons.cast_for_education_outlined, user.role == 'teacher', colorScheme),
-                const SizedBox(width: 8),
-                _buildRoleChip(context, authProvider, 'staff', 'Staff', Icons.badge_outlined, user.role == 'staff', colorScheme),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoleChip(
-    BuildContext context,
-    AuthProvider authProvider,
-    String roleValue,
-    String roleLabel,
-    IconData icon,
-    bool isSelected,
-    ColorScheme colorScheme,
-  ) {
-    return Expanded(
-      child: FilterChip(
-        selected: isSelected,
-        showCheckmark: false,
-        avatar: Icon(
-          icon,
-          size: 16,
-          color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
-        ),
-        label: Text(
-          roleLabel,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
-          ),
-        ),
-        selectedColor: colorScheme.primary,
-        onSelected: (_) {
-          authProvider.loginAsDemoUser(role: roleValue);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Switched to Demo $roleLabel mode.'),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
-      ),
     );
   }
 

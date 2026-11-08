@@ -1,13 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:image_picker/image_picker.dart';
+
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../models/item_model.dart';
+import '../providers/auth_provider.dart';
 
 /// Handles all Firestore CRUD operations for the `items` collection.
 class ItemService {
-  final CollectionReference _itemsRef =
+  CollectionReference get _itemsRef =>
       FirebaseFirestore.instance.collection('items');
 
   // ─── Upload Photo ────────────────────────────────────────────────────────
@@ -24,19 +28,21 @@ class ItemService {
 
     final request = http.MultipartRequest('POST', uri)
       ..fields['upload_preset'] = _uploadPreset
-      ..files.add(http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: imageFile.name.isNotEmpty ? imageFile.name : 'upload.jpg',
-      ));
+      ..files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: imageFile.name.isNotEmpty ? imageFile.name : 'upload.jpg',
+        ),
+      );
 
-    final streamed = await request.send().timeout(
-      const Duration(seconds: 30),
-    );
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamed);
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('Upload failed (${response.statusCode}): ${response.body}');
+      throw Exception(
+        'Upload failed (${response.statusCode}): ${response.body}',
+      );
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -59,19 +65,20 @@ class ItemService {
     String? verificationQuestion,
     required DateTime date,
     String? photoUrl,
+    Map<String, dynamic>? secureDetails,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null &&
-        user.email != null &&
-        !user.email!.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+    if (user == null ||
+        user.uid != ownerId ||
+        !AuthProvider.isBatStateUEmail(user.email ?? '')) {
       throw Exception(
-        'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post items.',
+        'Sign in with your university account to report an item.',
       );
     }
     final now = DateTime.now();
 
     final item = ItemModel(
-      id: '',  // placeholder — Firestore will generate the real ID
+      id: '', // placeholder — Firestore will generate the real ID
       ownerId: ownerId,
       type: type,
       title: title,
@@ -87,9 +94,23 @@ class ItemService {
       createdAt: now,
     );
 
-    final docRef = await _itemsRef.add(item.toMap());
-
-    // Return the model with the actual Firestore document ID
+    // Commit the report and its verification details together. A failed
+    // private write must not leave a public report that appears to have failed.
+    final docRef = _itemsRef.doc();
+    final batch = FirebaseFirestore.instance.batch();
+    batch.set(docRef, item.toMap());
+    if (secureDetails != null) {
+      batch.set(docRef.collection('verification').doc('questions'), {
+        'questions': List<String>.from(secureDetails['questions'] as List),
+      });
+      batch.set(docRef.collection('private').doc('details'), {
+        'exactAmount': secureDetails['exactAmount'],
+        'foundCondition': secureDetails['foundCondition'],
+        'answers': List<String>.from(secureDetails['answers'] as List),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
     return ItemModel.fromMap(item.toMap(), docRef.id);
   }
 
@@ -105,8 +126,10 @@ class ItemService {
 
     return query.snapshots().map((snapshot) {
       final items = snapshot.docs
-          .map((doc) =>
-              ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+          .map(
+            (doc) =>
+                ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id),
+          )
           .toList();
       // Sort client-side by createdAt descending to avoid composite index requirements in Firestore
       items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -133,23 +156,27 @@ class ItemService {
 
   /// Returns all items, newest first.
   Future<List<ItemModel>> getAllItems() async {
-    final snapshot =
-        await _itemsRef.orderBy('createdAt', descending: true).get();
+    final snapshot = await _itemsRef
+        .orderBy('createdAt', descending: true)
+        .get();
     return snapshot.docs
-        .map((doc) =>
-            ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id),
+        )
         .toList();
   }
 
   /// Real-time stream of items filed by a specific user, sorted newest first.
   Stream<List<ItemModel>> getItemsByUserStream(String userId) {
-    return _itemsRef
-        .where('ownerId', isEqualTo: userId)
-        .snapshots()
-        .map((snapshot) {
+    return _itemsRef.where('ownerId', isEqualTo: userId).snapshots().map((
+      snapshot,
+    ) {
       final items = snapshot.docs
-          .map((doc) =>
-              ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+          .map(
+            (doc) =>
+                ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id),
+          )
           .toList();
       items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return items;
@@ -158,12 +185,12 @@ class ItemService {
 
   /// Returns items filed by a specific user, newest first.
   Future<List<ItemModel>> getItemsByUser(String userId) async {
-    final snapshot = await _itemsRef
-        .where('ownerId', isEqualTo: userId)
-        .get();
+    final snapshot = await _itemsRef.where('ownerId', isEqualTo: userId).get();
     final items = snapshot.docs
-        .map((doc) =>
-            ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+        .map(
+          (doc) =>
+              ItemModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id),
+        )
         .toList();
     items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return items;
@@ -181,16 +208,17 @@ class ItemService {
   }) async {
     final itemDoc = _itemsRef.doc(itemId);
 
-    await itemDoc.collection('verification').doc('questions').set({
+    final batch = FirebaseFirestore.instance.batch();
+    batch.set(itemDoc.collection('verification').doc('questions'), {
       'questions': questions,
     });
-
-    await itemDoc.collection('private').doc('details').set({
+    batch.set(itemDoc.collection('private').doc('details'), {
       'exactAmount': exactAmount,
       'foundCondition': foundCondition,
       'answers': answers,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    await batch.commit();
   }
 
   /// Questions the claimer must answer. Never includes the answers.
@@ -226,4 +254,3 @@ class ItemService {
     await _itemsRef.doc(itemId).delete();
   }
 }
-

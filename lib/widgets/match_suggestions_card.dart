@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/item_model.dart';
 import '../services/matching_service.dart';
 import '../screens/details/item_details_screen.dart';
@@ -14,7 +15,6 @@ class MatchSuggestionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isLost = item.type.toLowerCase() == 'lost';
 
     return FutureBuilder<List<ItemModel>>(
@@ -58,7 +58,9 @@ class MatchSuggestionsCard extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: isLost ? Colors.teal.shade900 : Colors.blue.shade900,
+                        color: isLost
+                            ? Colors.teal.shade900
+                            : Colors.blue.shade900,
                       ),
                     ),
                   ),
@@ -80,7 +82,7 @@ class MatchSuggestionsCard extends StatelessWidget {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: matches.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
                     final match = matches[index];
                     return _MatchThumbnailCard(match: match);
@@ -108,9 +110,7 @@ class _MatchThumbnailCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ItemDetailsScreen(item: match),
-          ),
+          MaterialPageRoute(builder: (_) => ItemDetailsScreen(item: match)),
         );
       },
       child: Container(
@@ -187,4 +187,3 @@ class _MatchThumbnailCard extends StatelessWidget {
     );
   }
 }
-

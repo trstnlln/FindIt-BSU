@@ -1812,6 +1812,9 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
       if (!mounted) return;
       setState(() {
         _questions = questions;
+        for (final controller in _answerControllers) {
+          controller.dispose();
+        }
         _answerControllers.clear();
         _answerControllers
             .addAll(questions.map((_) => TextEditingController()));
@@ -1881,6 +1884,7 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
   }
   
   Future<void> _submitClaim() async {
+    if (_isSubmitting || _loadingQuestions) return;
     FocusScope.of(context).unfocus();
     setState(() => _errorMessage = null);
 

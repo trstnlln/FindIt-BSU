@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
 
 /// Register screen — collects name, email, password, and role,
@@ -25,9 +26,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // Available roles in the BSU campus community
   static const List<Map<String, dynamic>> _roles = [
-    {'value': 'student',  'label': 'Student',  'icon': Icons.school_outlined},
-    {'value': 'teacher',  'label': 'Teacher',  'icon': Icons.cast_for_education_outlined},
-    {'value': 'staff',    'label': 'Staff',    'icon': Icons.badge_outlined},
+    {'value': 'student', 'label': 'Student', 'icon': Icons.school_outlined},
+    {
+      'value': 'teacher',
+      'label': 'Teacher',
+      'icon': Icons.cast_for_education_outlined,
+    },
+    {'value': 'staff', 'label': 'Staff', 'icon': Icons.badge_outlined},
   ];
 
   @override
@@ -42,6 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // ─── Actions ────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
+    if (context.read<AuthProvider>().isLoading) return;
     FocusScope.of(context).unfocus();
     setState(() => _errorMessage = null);
 
@@ -144,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _buildTextField(
                   id: 'register_email',
                   controller: _emailController,
-                  label: 'Email address (@g.batstate-u.edu.ph)',
+                  label: 'University email',
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   action: TextInputAction.next,
@@ -171,7 +177,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   label: 'Password',
                   obscure: _obscurePassword,
-                  onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                  onToggle: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                   action: TextInputAction.next,
                   validator: (v) {
                     if (v == null || v.isEmpty) {
@@ -191,7 +198,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _confirmPasswordController,
                   label: 'Confirm password',
                   obscure: _obscureConfirm,
-                  onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  onToggle: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
                   action: TextInputAction.done,
                   onSubmitted: (_) => _submit(),
                   validator: (v) {
@@ -232,7 +240,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         )
                       : const Text(
                           'Create Account',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
                 const SizedBox(height: 20),
@@ -248,7 +259,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: isLoading ? null : () => Navigator.of(context).pop(),
+                      onTap: isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: Text(
                         'Log In',
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -279,7 +292,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: GestureDetector(
-              onTap: () => setState(() => _selectedRole = role['value'] as String),
+              onTap: () =>
+                  setState(() => _selectedRole = role['value'] as String),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -374,9 +388,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         prefixIcon: const Icon(Icons.lock_outlined),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         suffixIcon: IconButton(
-          icon: Icon(obscure
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined),
+          icon: Icon(
+            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          ),
           onPressed: onToggle,
         ),
       ),

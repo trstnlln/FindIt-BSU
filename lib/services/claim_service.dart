@@ -1,13 +1,21 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
+import '../providers/auth_provider.dart';
+
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+
 import '../models/claim_model.dart';
 
 /// Handles Firestore CRUD operations for the `claims` collection.
 class ClaimService {
-  final CollectionReference _claimsRef =
-      FirebaseFirestore.instance.collection('claims');
-  final CollectionReference _itemsRef =
-      FirebaseFirestore.instance.collection('items');
+  final CollectionReference _claimsRef = FirebaseFirestore.instance.collection(
+    'claims',
+  );
+  final CollectionReference _itemsRef = FirebaseFirestore.instance.collection(
+    'items',
+  );
 
   // ─── Create ───────────────────────────────────────────────────────────────
 
@@ -23,7 +31,11 @@ class ClaimService {
     required String proof,
     List<String> verificationAnswers = const [],
   }) async {
-    if (!claimantEmail.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null ||
+        user.uid != claimantId ||
+        !AuthProvider.isBatStateUEmail(user.email ?? '') ||
+        claimantEmail != user.email) {
       throw Exception(
         'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.',
       );
@@ -44,7 +56,33 @@ class ClaimService {
       createdAt: now,
     );
 
-    final docRef = await _claimsRef.add(claim.toMap());
+    final existing = await _claimsRef
+        .where('itemId', isEqualTo: itemId)
+        .where('claimantId', isEqualTo: claimantId)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) {
+      throw Exception('You already submitted a claim for this item.');
+    }
+    final id = base64Url
+        .encode(utf8.encode(jsonEncode([itemId, claimantId])))
+        .replaceAll('=', '');
+    final docRef = _claimsRef.doc(id);
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final item = await transaction.get(_itemsRef.doc(itemId));
+      final duplicate = await transaction.get(docRef);
+      final data = item.data() as Map<String, dynamic>?;
+      if (duplicate.exists) {
+        throw Exception('You already submitted a claim for this item.');
+      }
+      if (data == null || data['status'] != 'open') {
+        throw Exception('This item is no longer open for claims.');
+      }
+      if (data['ownerId'] != ownerId || ownerId == claimantId) {
+        throw Exception('You cannot claim your own report.');
+      }
+      transaction.set(docRef, claim.toMap());
+    });
     return ClaimModel.fromMap(claim.toMap(), docRef.id);
   }
 
@@ -52,7 +90,10 @@ class ClaimService {
 
   /// Real-time stream of all claims submitted for a specific [itemId].
   /// Optionally constrained by [ownerId] to ensure matching Firestore read security rules.
-  Stream<List<ClaimModel>> getClaimsForItemStream(String itemId, {String? ownerId}) {
+  Stream<List<ClaimModel>> getClaimsForItemStream(
+    String itemId, {
+    String? ownerId,
+  }) {
     final uid = ownerId ?? FirebaseAuth.instance.currentUser?.uid;
     Query query = _claimsRef.where('itemId', isEqualTo: itemId);
     if (uid != null) {
@@ -60,8 +101,10 @@ class ClaimService {
     }
     return query.snapshots().map((snapshot) {
       final claims = snapshot.docs
-          .map((doc) =>
-              ClaimModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+          .map(
+            (doc) =>
+                ClaimModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id),
+          )
           .toList();
       // Client-side sort to avoid requiring composite indexes
       claims.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -71,13 +114,14 @@ class ClaimService {
 
   /// Real-time stream of all incoming claims across all items owned by [ownerId].
   Stream<List<ClaimModel>> getClaimsByOwnerStream(String ownerId) {
-    return _claimsRef
-        .where('ownerId', isEqualTo: ownerId)
-        .snapshots()
-        .map((snapshot) {
+    return _claimsRef.where('ownerId', isEqualTo: ownerId).snapshots().map((
+      snapshot,
+    ) {
       final claims = snapshot.docs
-          .map((doc) =>
-              ClaimModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
+          .map(
+            (doc) =>
+                ClaimModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id),
+          )
           .toList();
       claims.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return claims;
@@ -94,12 +138,12 @@ class ClaimService {
         .where('claimantId', isEqualTo: claimantId)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isEmpty) return null;
-      return ClaimModel.fromMap(
-        snapshot.docs.first.data()! as Map<String, dynamic>,
-        snapshot.docs.first.id,
-      );
-    });
+          if (snapshot.docs.isEmpty) return null;
+          return ClaimModel.fromMap(
+            snapshot.docs.first.data()! as Map<String, dynamic>,
+            snapshot.docs.first.id,
+          );
+        });
   }
 
   /// Real-time stream of all claims submitted by a claimant across all items.
@@ -108,13 +152,17 @@ class ClaimService {
         .where('claimantId', isEqualTo: claimantId)
         .snapshots()
         .map((snapshot) {
-      final claims = snapshot.docs
-          .map((doc) =>
-              ClaimModel.fromMap(doc.data()! as Map<String, dynamic>, doc.id))
-          .toList();
-      claims.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return claims;
-    });
+          final claims = snapshot.docs
+              .map(
+                (doc) => ClaimModel.fromMap(
+                  doc.data()! as Map<String, dynamic>,
+                  doc.id,
+                ),
+              )
+              .toList();
+          claims.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return claims;
+        });
   }
 
   // ─── Approval & Rejection ─────────────────────────────────────────────────
@@ -127,43 +175,49 @@ class ClaimService {
     required String claimId,
     required String itemId,
   }) async {
-    final batch = FirebaseFirestore.instance.batch();
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    // 1. Mark this claim as approved
-    batch.update(_claimsRef.doc(claimId), {
-      'status': 'approved',
-      'updatedAt': now,
-    });
-
-    // 2. Mark item as claimed
-    batch.update(_itemsRef.doc(itemId), {
-      'status': 'claimed',
-    });
-
-    // 3. Mark other pending claims for this item as rejected
-    // Single equality filter on 'itemId' to avoid requiring composite indexes in Firestore
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception('You must be logged in.');
-
     final otherClaims = await _claimsRef
         .where('itemId', isEqualTo: itemId)
         .where('ownerId', isEqualTo: uid)
         .get();
-
-    for (final doc in otherClaims.docs) {
-      if (doc.id != claimId) {
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final item = await transaction.get(_itemsRef.doc(itemId));
+      final selected = await transaction.get(_claimsRef.doc(claimId));
+      final itemData = item.data() as Map<String, dynamic>?;
+      final claimData = selected.data() as Map<String, dynamic>?;
+      if (itemData == null ||
+          itemData['ownerId'] != uid ||
+          itemData['status'] != 'open' ||
+          claimData == null ||
+          claimData['ownerId'] != uid ||
+          claimData['itemId'] != itemId ||
+          claimData['status'] != 'pending') {
+        throw Exception(
+          'This claim or item has already changed. Refresh and try again.',
+        );
+      }
+      // Read before writing; the item lock prevents two concurrent approvals.
+      final others = <DocumentSnapshot>[];
+      for (final doc in otherClaims.docs) {
+        if (doc.id != claimId) others.add(await transaction.get(doc.reference));
+      }
+      final now = DateTime.now().millisecondsSinceEpoch;
+      transaction.update(selected.reference, {
+        'status': 'approved',
+        'updatedAt': now,
+      });
+      transaction.update(item.reference, {'status': 'claimed'});
+      for (final doc in others) {
         final data = doc.data() as Map<String, dynamic>?;
-        if (data != null && data['status'] == 'pending') {
-          batch.update(doc.reference, {
+        if (data?['status'] == 'pending') {
+          transaction.update(doc.reference, {
             'status': 'rejected',
             'updatedAt': now,
           });
         }
       }
-    }
-
-    await batch.commit();
+    });
   }
 
   /// Rejects a specific claim request.
@@ -174,4 +228,3 @@ class ClaimService {
     });
   }
 }
-

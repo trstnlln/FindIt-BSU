@@ -7,8 +7,18 @@ import 'package:flutter/material.dart';
 /// Formats a DateTime as 'Mon DD, YYYY' (e.g., 'Jan 5, 2026').
 String formatDate(DateTime dt) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
 }
@@ -16,8 +26,18 @@ String formatDate(DateTime dt) {
 /// Formats a DateTime as 'Month DD, YYYY' (e.g., 'January 5, 2026').
 String formatDateFull(DateTime dt) {
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
 }
@@ -85,6 +105,7 @@ const List<String> itemCategories = [
   'ID / Cards',
   'Books / Notes',
   'Bags / Wallets',
+  'Money',
   'Keys',
   'Accessories',
   'Documents',
@@ -130,4 +151,3 @@ const List<Map<String, String>> itemStatuses = [
   {'value': 'claimed', 'label': 'Claimed'},
   {'value': 'returned', 'label': 'Returned'},
 ];
-

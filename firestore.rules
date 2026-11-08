@@ -1,72 +1,70 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+    function campusMember() {
+      return signedIn() && request.auth.token.email is string &&
+        request.auth.token.email.matches('^[^@\\s]+@g\\.batstate-u\\.edu\\.ph$');
     }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function ownsItem(itemId) {
+      return signedIn() && get(/databases/$(database)/documents/items/$(itemId)).data.ownerId == request.auth.uid;
     }
-
-    // Strict domain restriction helper: requires valid @g.batstate-u.edu.ph email
-    function isBatStateUEmail() {
-      return isAuthenticated() &&
-             request.auth.token.email != null &&
-             request.auth.token.email.matches('.*@g\\.batstate-u\\.edu\\.ph$');
+    function ownsItemAfter(itemId) {
+      return campusMember() && getAfter(/databases/$(database)/documents/items/$(itemId)).data.ownerId == request.auth.uid;
     }
-
-    // ─── Users Collection ──────────────────────────────────────────────
     match /users/{userId} {
-      // Anyone authenticated can view user profiles (e.g. reporter name, claims)
-      allow read: if isAuthenticated();
-      // Users can only create or update their own user profile document if they have a valid @g.batstate-u.edu.ph email
-      allow create, update: if isOwner(userId) && isBatStateUEmail();
-      // Prevent deleting user records
+      allow read: if signedIn();
+      allow create, update: if campusMember() && request.auth.uid == userId &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.role in ['student', 'teacher', 'staff'];
       allow delete: if false;
     }
-
-    // ─── Items Collection ──────────────────────────────────────────────
     match /items/{itemId} {
-      // Any authenticated user can browse lost and found items
-      allow read: if isAuthenticated();
+      allow read: if signedIn();
+      allow create: if campusMember() && request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.type in ['lost', 'found'] && request.resource.data.status == 'open';
+      allow update: if ownsItem(itemId) &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.type == resource.data.type &&
+        request.resource.data.status in ['open', 'claimed', 'returned'];
+      allow delete: if ownsItem(itemId);
 
-      // Only users with an official @g.batstate-u.edu.ph email can post items
-      allow create: if isBatStateUEmail() &&
-                    request.resource.data.ownerId == request.auth.uid;
-
-      // Only the item owner can update their own item (e.g. edit details, mark claimed/returned)
-      allow update: if isAuthenticated() &&
-                    resource.data.ownerId == request.auth.uid;
-
-      // Only the item owner can delete their own item
-      allow delete: if isAuthenticated() &&
-                    resource.data.ownerId == request.auth.uid;
+      // Questions can be shown to claimers. Answers and contents stay private.
+      match /verification/{document} {
+        allow read: if campusMember();
+        allow create, update: if ownsItemAfter(itemId);
+        allow delete: if ownsItem(itemId);
+      }
+      match /private/{document} {
+        allow read, delete: if ownsItem(itemId);
+        allow create, update: if ownsItemAfter(itemId);
+      }
     }
-
-    // ─── Claims Collection ─────────────────────────────────────────────
     match /claims/{claimId} {
-      // Only the claimant or the item owner can read a claim (maintains privacy of proofs)
-      allow read: if isAuthenticated() &&
-                  (resource.data.claimantId == request.auth.uid ||
-                   resource.data.ownerId == request.auth.uid);
-
-      // Only users with an official @g.batstate-u.edu.ph email can submit claims
-      allow create: if isBatStateUEmail() &&
-                    request.resource.data.claimantId == request.auth.uid;
-
-      // Item owner can approve/reject claims, or claimant can update their own pending claim
-      allow update: if isAuthenticated() &&
-                    (resource.data.ownerId == request.auth.uid ||
-                     resource.data.claimantId == request.auth.uid);
-
-      // Claimant can delete their own claim or item owner can remove it
-      allow delete: if isAuthenticated() &&
-                    (resource.data.claimantId == request.auth.uid ||
-                     resource.data.ownerId == request.auth.uid);
+      function participant() {
+        return signedIn() && (resource.data.claimantId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      }
+      // Permit a claimant to check the absence of their deterministic claim
+      // inside a transaction; existing documents still require participation.
+      allow get: if participant() || (campusMember() && !exists(/databases/$(database)/documents/claims/$(claimId)));
+      allow list: if participant();
+      allow create: if campusMember() &&
+        request.resource.data.claimantId == request.auth.uid &&
+        request.resource.data.claimantEmail == request.auth.token.email &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.ownerId != request.auth.uid &&
+        get(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.ownerId == request.resource.data.ownerId &&
+        get(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.status == 'open';
+      // Neither participant may replace identities, proof, or ownership.
+      // Only the reporter can decide an ownership claim.
+      allow update: if signedIn() && resource.data.ownerId == request.auth.uid &&
+        resource.data.status == 'pending' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+        request.resource.data.status in ['approved', 'rejected'] &&
+        (request.resource.data.status == 'rejected' ||
+          (get(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'open' &&
+           getAfter(/databases/$(database)/documents/items/$(resource.data.itemId)).data.status == 'claimed'));
+      allow delete: if participant();
     }
   }
 }

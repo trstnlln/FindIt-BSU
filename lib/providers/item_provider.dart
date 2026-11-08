@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../models/item_model.dart';
 import '../services/item_service.dart';
 
@@ -11,6 +12,7 @@ class ItemProvider extends ChangeNotifier {
   final ItemService _itemService = ItemService();
 
   bool _isLoading = false;
+  bool _disposed = false;
   ItemModel? _lastCreatedItem;
 
   /// True while a create/fetch operation is in progress.
@@ -21,7 +23,7 @@ class ItemProvider extends ChangeNotifier {
 
   void _setLoading(bool value) {
     _isLoading = value;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   /// Exposes the item service instance.
@@ -53,6 +55,8 @@ class ItemProvider extends ChangeNotifier {
     XFile? imageFile,
     Map<String, dynamic>? secureDetails,
   }) async {
+    if (_isLoading) return 'Your report is already being submitted.';
+    _lastCreatedItem = null;
     _setLoading(true);
     try {
       String? photoUrl;
@@ -72,29 +76,23 @@ class ItemProvider extends ChangeNotifier {
         verificationQuestion: verificationQuestion,
         date: date,
         photoUrl: photoUrl,
+        secureDetails: secureDetails,
       );
 
-      // Save private verification details (money / wallets only)
-      if (secureDetails != null) {
-        await _itemService.savePrivateDetails(
-          itemId: _lastCreatedItem!.id,
-          exactAmount: secureDetails['exactAmount'] as String,
-          foundCondition: secureDetails['foundCondition'] as String,
-          questions: List<String>.from(secureDetails['questions'] as List),
-          answers: List<String>.from(secureDetails['answers'] as List),
-        );
-      }
       return null; // null = success
     } catch (e) {
-<<<<<<< HEAD
-      debugPrint('reportItem error: $e');
-      return e.toString().replaceFirst('Exception: ', '');
-=======
       final msg = e.toString().replaceAll('Exception: ', '').trim();
-      return msg.isNotEmpty ? msg : 'Failed to submit report. Please try again.';
->>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
+      return msg.isNotEmpty
+          ? msg
+          : 'Failed to submit report. Please try again.';
     } finally {
       _setLoading(false);
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

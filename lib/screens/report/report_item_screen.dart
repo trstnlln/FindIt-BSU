@@ -1,7 +1,9 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../providers/item_provider.dart';
 import '../../utils/helpers.dart';
@@ -37,63 +39,27 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       _type == 'found' &&
       (_category == 'Money' || _category == 'Bags / Wallets');
 
-  String _type = 'lost';              // 'lost' or 'found'
-  String? _category;                  // selected category
-  String? _campusLocation;            // selected campus location
-  String? _custodyLocation;           // where surrendered (e.g. Guard Post)
-  DateTime _date = DateTime.now();     // default to today
-  XFile? _selectedImage;              // picked image file
-  Uint8List? _selectedImageBytes;     // bytes for preview across all platforms
+  String _type = 'lost'; // 'lost' or 'found'
+  String? _category; // selected category
+  String? _campusLocation; // selected campus location
+  String? _custodyLocation; // where surrendered (e.g. Guard Post)
+  DateTime _date = DateTime.now(); // default to today
+  XFile? _selectedImage; // picked image file
+  Uint8List? _selectedImageBytes; // bytes for preview across all platforms
   String? _errorMessage;
 
-<<<<<<< HEAD
-  // ── Dropdown options ──────────────────────────────────────────────────────
-
-  static const List<String> _categories = [
-    'Electronics',
-    'Clothing',
-    'ID / Cards',
-    'Books / Notes',
-    'Bags / Wallets',
-    'Keys',
-    'Accessories',
-    'Documents',
-    'Water Bottle / Tumbler',
-    'Money',
-    'Other',
-  ];
-
-  static const List<String> _campusLocations = [
-    'Main Academic Building',
-    'College of Engineering',
-    'College of Informatics & Computing Sciences',
-    'College of Engineering Technology',
-    'Library',
-    'Sparta Gymnasium',
-    'Canteen / Food Court',
-    'Student Center',
-    'Parking Area',
-    'Gate Entrance',
-    'Other',
-  ];
-
-=======
->>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-<<<<<<< HEAD
     _amountController.dispose();
     _conditionController.dispose();
     _q1Controller.dispose();
     _a1Controller.dispose();
     _q2Controller.dispose();
     _a2Controller.dispose();
-=======
     _specificLocationController.dispose();
     _verificationQuestionController.dispose();
->>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
     super.dispose();
   }
 
@@ -106,9 +72,11 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       initialDate: _date,
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now,
-      helpText: _type == 'lost' ? 'When did you lose it?' : 'When did you find it?',
+      helpText: _type == 'lost'
+          ? 'When did you lose it?'
+          : 'When did you find it?',
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() => _date = picked);
     }
   }
@@ -126,6 +94,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
 
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
+        if (!mounted) return;
         setState(() {
           _selectedImage = pickedFile;
           _selectedImageBytes = bytes;
@@ -133,9 +102,8 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
       }
     }
   }
@@ -164,9 +132,8 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
               ),
               Text(
                 'Upload Item Photo',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(
@@ -230,6 +197,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   }
 
   Future<void> _submit() async {
+    if (context.read<ItemProvider>().isLoading) return;
     // Hide keyboard
     FocusScope.of(context).unfocus();
 
@@ -243,13 +211,16 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
 
     final user = authProvider.currentUser;
     if (user == null) {
-      setState(() => _errorMessage = 'User session expired. Please log in again.');
+      setState(
+        () => _errorMessage = 'User session expired. Please log in again.',
+      );
       return;
     }
 
     if (!user.email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
-      setState(() => _errorMessage =
-          'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post item reports.');
+      setState(
+        () => _errorMessage = 'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post item reports.',
+      );
       return;
     }
 
@@ -266,13 +237,14 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       custodyLocation: _type == 'found' && _custodyLocation != null
           ? _custodyLocation
           : null,
-      verificationQuestion: _type == 'found' &&
+      verificationQuestion:
+          _type == 'found' &&
               _verificationQuestionController.text.trim().isNotEmpty
           ? _verificationQuestionController.text.trim()
           : null,
       date: _date,
       imageFile: _selectedImage,
-            secureDetails: _needsSecurity
+      secureDetails: _needsSecurity
           ? {
               'exactAmount': _amountController.text.trim(),
               'foundCondition': _conditionController.text.trim(),
@@ -280,10 +252,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
                 _q1Controller.text.trim(),
                 _q2Controller.text.trim(),
               ],
-              'answers': [
-                _a1Controller.text.trim(),
-                _a2Controller.text.trim(),
-              ],
+              'answers': [_a1Controller.text.trim(), _a2Controller.text.trim()],
             }
           : null,
     );
@@ -303,7 +272,9 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
           ),
           backgroundColor: Colors.green.shade800,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       Navigator.of(context).pop();
@@ -318,88 +289,131 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     final isLoading = context.watch<ItemProvider>().isLoading;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Report an Item'),
-      ),
+      appBar: AppBar(title: const Text('Report an Item')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Type Toggle (Lost / Found) ──────────────────────────
-              _buildTypeToggle(colorScheme),
-              const SizedBox(height: 20),
+        child: AbsorbPointer(
+          absorbing: isLoading,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Type Toggle (Lost / Found) ──────────────────────────
+                Text(
+                  'Let’s bring it back.',
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'A few details can make someone’s day.',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 24),
+                _buildTypeToggle(colorScheme),
+                const SizedBox(height: 20),
 
-              // ── Title ───────────────────────────────────────────────
-              _buildTitleField(),
-              const SizedBox(height: 16),
-
-              // ── Description ─────────────────────────────────────────
-              _buildDescriptionField(),
-              const SizedBox(height: 16),
-
-              // ── Category Dropdown ───────────────────────────────────
-              _buildCategoryDropdown(),
-              const SizedBox(height: 16),
-
-              // ── Campus Location Dropdown ────────────────────────────
-              _buildLocationDropdown(),
-              const SizedBox(height: 16),
-
-              // ── Specific Room / Floor Field ─────────────────────────
-              _buildSpecificLocationField(),
-              const SizedBox(height: 16),
-
-              // ── Found Item Specials: Custody & Blind Verification Question
-              if (_type == 'found') ...[
-                _buildCustodyDropdown(),
+                // ── Title ───────────────────────────────────────────────
+                _sectionHeading('01', 'About the item'),
+                _buildTitleField(),
                 const SizedBox(height: 16),
-                _buildVerificationQuestionField(colorScheme),
+
+                // ── Description ─────────────────────────────────────────
+                _buildDescriptionField(),
                 const SizedBox(height: 16),
+
+                // ── Category Dropdown ───────────────────────────────────
+                _buildCategoryDropdown(),
+                const SizedBox(height: 16),
+
+                // ── Campus Location Dropdown ────────────────────────────
+                _sectionHeading('02', 'Where and when'),
+                _buildLocationDropdown(),
+                const SizedBox(height: 16),
+
+                // ── Specific Room / Floor Field ─────────────────────────
+                _buildSpecificLocationField(),
+                const SizedBox(height: 16),
+
+                // ── Found Item Specials: Custody & Blind Verification Question
+                if (_type == 'found') ...[
+                  _buildCustodyDropdown(),
+                  const SizedBox(height: 16),
+                  _buildVerificationQuestionField(colorScheme),
+                  const SizedBox(height: 16),
+                ],
+
+                // ── Date Picker ─────────────────────────────────────────
+                _buildDatePicker(colorScheme),
+                const SizedBox(height: 16),
+
+                // ── Photo Upload Section ────────────────────────────────
+                _sectionHeading('03', 'Help it stand out'),
+                _buildPhotoUploadSection(colorScheme),
+                const SizedBox(height: 16),
+                if (_needsSecurity) _buildSecuritySection(colorScheme),
+
+                // ── Error Banner ────────────────────────────────────────
+                if (_errorMessage != null) ...[
+                  _buildErrorBanner(_errorMessage!),
+                  const SizedBox(height: 12),
+                ],
+
+                // ── Submit Button ───────────────────────────────────────
+                const SizedBox(height: 8),
+                _buildSubmitButton(isLoading),
+                const SizedBox(height: 24),
               ],
-
-              // ── Date Picker ─────────────────────────────────────────
-              _buildDatePicker(colorScheme),
-              const SizedBox(height: 16),
-
-              // ── Photo Upload Section ────────────────────────────────
-              _buildPhotoUploadSection(colorScheme),
-              const SizedBox(height: 16),
-              if (_needsSecurity) _buildSecuritySection(colorScheme),
-
-              // ── Error Banner ────────────────────────────────────────
-              if (_errorMessage != null) ...[
-                _buildErrorBanner(_errorMessage!),
-                const SizedBox(height: 12),
-              ],
-
-              // ── Submit Button ───────────────────────────────────────
-              const SizedBox(height: 8),
-              _buildSubmitButton(isLoading),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _sectionHeading(String number, String title) => Padding(
+    padding: const EdgeInsets.only(bottom: 16, top: 8),
+    child: Row(
+      children: [
+        Text(
+          number,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
+
   // ─── Widget Helpers ─────────────────────────────────────────────────────
 
   /// Segmented button to toggle between "Lost" and "Found".
   Widget _buildTypeToggle(ColorScheme colorScheme) {
     return SegmentedButton<String>(
+      direction:
+          MediaQuery.sizeOf(context).width < 360 ||
+              MediaQuery.textScalerOf(context).scale(14) > 18
+          ? Axis.vertical
+          : Axis.horizontal,
       segments: const [
         ButtonSegment(
           value: 'lost',
-          label: Text('I Lost Something'),
+          label: Text('I lost an item'),
           icon: Icon(Icons.search_rounded),
         ),
         ButtonSegment(
           value: 'found',
-          label: Text('I Found Something'),
+          label: Text('I found an item'),
           icon: Icon(Icons.inventory_2_outlined),
         ),
       ],
@@ -453,7 +467,8 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       maxLines: 4,
       decoration: InputDecoration(
         labelText: 'Description',
-        hintText: 'Color, brand, distinguishing marks, sticker, case details...',
+        hintText:
+            'Color, brand, distinguishing marks, sticker, case details...',
         alignLabelWithHint: true,
         prefixIcon: const Padding(
           padding: EdgeInsets.only(bottom: 60),
@@ -476,6 +491,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   Widget _buildCategoryDropdown() {
     return DropdownButtonFormField<String>(
       initialValue: _category,
+      isExpanded: true,
       decoration: InputDecoration(
         labelText: 'Category',
         prefixIcon: const Icon(Icons.category_outlined),
@@ -558,14 +574,20 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.vpn_key_rounded, size: 16, color: Colors.amber.shade900),
+              Icon(
+                Icons.vpn_key_rounded,
+                size: 16,
+                color: Colors.amber.shade900,
+              ),
               const SizedBox(width: 6),
-              Text(
-                'Anti-Fraud Verification Question (Recommended)',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.amber.shade900,
+              Expanded(
+                child: Text(
+                  'Ownership verification (recommended)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade900,
+                  ),
                 ),
               ),
             ],
@@ -583,8 +605,13 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
               hintStyle: const TextStyle(fontSize: 12),
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
             ),
           ),
         ],
@@ -604,12 +631,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
           prefixIcon: const Icon(Icons.calendar_today_rounded),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: Text(
-          dateText,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-          ),
-        ),
+        child: Text(dateText, style: TextStyle(color: colorScheme.onSurface)),
       ),
     );
   }
@@ -653,10 +675,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: Image.memory(
-                    _selectedImageBytes!,
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.memory(_selectedImageBytes!, fit: BoxFit.cover),
                 ),
               ),
               Positioned(
@@ -666,7 +685,11 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
                   color: Colors.black54,
                   shape: const CircleBorder(),
                   child: IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     tooltip: 'Remove photo',
                     onPressed: _removeImage,
                   ),
@@ -724,7 +747,8 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       ),
     );
   }
-    /// Private fields shown only when reporting FOUND money / wallets.
+
+  /// Private fields shown only when reporting FOUND money / wallets.
   Widget _buildSecuritySection(ColorScheme colorScheme) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -739,12 +763,17 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.lock_outline_rounded,
-                  size: 18, color: colorScheme.primary),
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 18,
+                color: colorScheme.primary,
+              ),
               const SizedBox(width: 8),
-              const Text(
-                'Private verification details',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              const Expanded(
+                child: Text(
+                  'Private verification details',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
               ),
             ],
           ),
@@ -753,23 +782,34 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
             'Only you can see the answers. Do not mention the amount in the '
             'title, description, or photo. Please hand the item over at the '
             'Security Office and check the claimer\'s school ID.',
-            style: TextStyle(
-                fontSize: 12, color: colorScheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 14),
-          _secureField(_amountController, 'Exact amount / contents',
-              'e.g. 2 x P500, 1 x P100'),
+          _secureField(
+            _amountController,
+            'Exact amount / contents',
+            'e.g. 2 x P500, 1 x P100',
+          ),
           const SizedBox(height: 12),
-          _secureField(_conditionController, 'How was it found?',
-              'e.g. inside a brown envelope, folded'),
+          _secureField(
+            _conditionController,
+            'How was it found?',
+            'e.g. inside a brown envelope, folded',
+          ),
           const SizedBox(height: 12),
-          _secureField(_q1Controller, 'Question 1 for the claimer',
-              'e.g. How much money was it?'),
+          _secureField(
+            _q1Controller,
+            'Question 1 for the claimer',
+            'e.g. How much money was it?',
+          ),
           const SizedBox(height: 12),
           _secureField(_a1Controller, 'Correct answer 1', 'Kept private'),
           const SizedBox(height: 12),
-          _secureField(_q2Controller, 'Question 2 for the claimer',
-              'e.g. What was it kept in?'),
+          _secureField(
+            _q2Controller,
+            'Question 2 for the claimer',
+            'e.g. What was it kept in?',
+          ),
           const SizedBox(height: 12),
           _secureField(_a2Controller, 'Correct answer 2', 'Kept private'),
         ],
@@ -778,7 +818,10 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   }
 
   Widget _secureField(
-      TextEditingController controller, String label, String hint) {
+    TextEditingController controller,
+    String label,
+    String hint,
+  ) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
@@ -831,7 +874,10 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
           ? const SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.white,
+              ),
             )
           : Text(
               _type == 'lost' ? 'Submit Lost Report' : 'Submit Found Report',

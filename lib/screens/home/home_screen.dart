@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/item_service.dart';
 import '../../utils/helpers.dart';
 import '../../widgets/empty_state_view.dart';
 import '../../widgets/item_card.dart';
+import '../../widgets/brand_logo.dart';
+import '../../models/user_model.dart';
 import '../activity/my_activity_screen.dart';
 import '../profile/profile_screen.dart';
 import '../report/report_item_screen.dart';
@@ -25,6 +28,12 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0; // 0 = Explore, 1 = My Activity, 2 = Campus Hub
 
   final ItemService _itemService = ItemService();
+  late final Stream<List<ItemModel>> _lostItems = _itemService.getItemsStream(
+    type: 'lost',
+  );
+  late final Stream<List<ItemModel>> _foundItems = _itemService.getItemsStream(
+    type: 'found',
+  );
   final TextEditingController _searchController = TextEditingController();
 
   String _searchQuery = '';
@@ -33,47 +42,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedStatus; // null = All, 'open', 'claimed', 'returned'
   DateTime? _selectedDate;
 
-<<<<<<< HEAD
-  static const List<String> _categories = [
-    'Electronics',
-    'Clothing',
-    'ID / Cards',
-    'Money',
-    'Books / Notes',
-    'Bags / Wallets',
-    'Keys',
-    'Accessories',
-    'Documents',
-    'Water Bottle / Tumbler',
-    'Other',
-  ];
-
-  static const List<String> _campusLocations = [
-    'Main Academic Building',
-    'College of Engineering',
-    'College of Arts & Sciences',
-    'College of Informatics & Computing Sciences',
-    'College of Industrial Technology',
-    'College of Nursing',
-    'Library',
-    'Gymnasium',
-    'Canteen / Food Court',
-    'Student Center',
-    'Parking Area',
-    'Covered Court',
-    'Gate 1 Entrance',
-    'Gate 2 Entrance',
-    'Other',
-  ];
-
-  static const List<Map<String, String>> _statuses = [
-    {'value': 'open', 'label': 'Open Only'},
-    {'value': 'claimed', 'label': 'Claimed'},
-    {'value': 'returned', 'label': 'Returned'},
-  ];
-
-=======
->>>>>>> 3bdccd600bd352952b2cb0f055539da10cce430c
   bool get _hasActiveFilters =>
       _searchQuery.isNotEmpty ||
       _selectedCategory != null ||
@@ -116,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
       lastDate: now,
       helpText: 'Filter items by date',
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() => _selectedDate = picked);
     }
   }
@@ -136,17 +104,18 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Filter by Category',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.clear_all_rounded),
                 title: const Text('All Categories'),
                 trailing: _selectedCategory == null
-                    ? Icon(Icons.check_rounded,
-                        color: Theme.of(context).colorScheme.primary)
+                    ? Icon(
+                        Icons.check_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
                     : null,
                 onTap: () {
                   setState(() => _selectedCategory = null);
@@ -167,8 +136,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     return ListTile(
                       title: Text(cat),
                       trailing: isSelected
-                          ? Icon(Icons.check_rounded,
-                              color: Theme.of(context).colorScheme.primary)
+                          ? Icon(
+                              Icons.check_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
                           : null,
                       onTap: () {
                         setState(() => _selectedCategory = cat);
@@ -200,17 +171,18 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Filter by Campus Location',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.clear_all_rounded),
                 title: const Text('All Locations'),
                 trailing: _selectedLocation == null
-                    ? Icon(Icons.check_rounded,
-                        color: Theme.of(context).colorScheme.primary)
+                    ? Icon(
+                        Icons.check_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
                     : null,
                 onTap: () {
                   setState(() => _selectedLocation = null);
@@ -231,8 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     return ListTile(
                       title: Text(loc),
                       trailing: isSelected
-                          ? Icon(Icons.check_rounded,
-                              color: Theme.of(context).colorScheme.primary)
+                          ? Icon(
+                              Icons.check_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
                           : null,
                       onTap: () {
                         setState(() => _selectedLocation = loc);
@@ -263,17 +237,18 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Filter by Item Status',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.clear_all_rounded),
                 title: const Text('All Statuses (Open, Claimed, Returned)'),
                 trailing: _selectedStatus == null
-                    ? Icon(Icons.check_rounded,
-                        color: Theme.of(context).colorScheme.primary)
+                    ? Icon(
+                        Icons.check_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
                     : null,
                 onTap: () {
                   setState(() => _selectedStatus = null);
@@ -286,8 +261,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 return ListTile(
                   title: Text(s['label']!),
                   trailing: isSelected
-                      ? Icon(Icons.check_rounded,
-                          color: Theme.of(context).colorScheme.primary)
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                        )
                       : null,
                   onTap: () {
                     setState(() => _selectedStatus = s['value']);
@@ -336,66 +313,55 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
-            label: 'Campus Hub',
+            label: 'Profile',
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          final user = context.read<AuthProvider>().currentUser;
-          if (user == null || !AuthProvider.isBatStateUEmail(user.email)) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text(
-                  'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post items.',
-                ),
-                backgroundColor: colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            return;
-          }
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ReportItemScreen()),
-          );
-        },
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Report Item'),
-      ),
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                final user = context.read<AuthProvider>().currentUser;
+                if (user == null ||
+                    !AuthProvider.isBatStateUEmail(user.email)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post items.',
+                      ),
+                      backgroundColor: colorScheme.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  return;
+                }
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ReportItemScreen()),
+                );
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Report item'),
+            )
+          : null,
     );
   }
 
   // ─── Tab 0: Explore Feed Screen ─────────────────────────────────────────
 
-  Widget _buildExploreFeedScreen(ColorScheme colorScheme, dynamic user) {
+  Widget _buildExploreFeedScreen(ColorScheme colorScheme, UserModel? user) {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.search_rounded,
-                  size: 20,
-                  color: colorScheme.primary,
-                ),
-              ),
+              const BrandLogo(size: 38),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'FindIt BSU',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                   Text(
                     user != null ? 'Hi, ${user.name}' : 'BSU Alangilan',
@@ -426,20 +392,41 @@ class _HomeScreenState extends State<HomeScreen> {
               fontSize: 14,
             ),
             tabs: const [
-              Tab(
-                icon: Icon(Icons.search_rounded),
-                text: 'Lost Items',
-              ),
-              Tab(
-                icon: Icon(Icons.inventory_2_outlined),
-                text: 'Found Items',
-              ),
+              Tab(icon: Icon(Icons.search_rounded), text: 'Lost Items'),
+              Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Found Items'),
             ],
           ),
         ),
         body: Column(
           children: [
             // ── Search & Filter Controls ─────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Find your way back.',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -.6,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'A helping hand, right here on campus.',
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             _buildSearchAndFilterHeader(colorScheme),
 
             // ── Tab View Feed ────────────────────────────────────────
@@ -447,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: TabBarView(
                 children: [
                   _ItemStreamList(
-                    itemService: _itemService,
+                    itemsStream: _lostItems,
                     type: 'lost',
                     searchQuery: _searchQuery,
                     selectedCategory: _selectedCategory,
@@ -457,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     onResetFilters: _resetFilters,
                   ),
                   _ItemStreamList(
-                    itemService: _itemService,
+                    itemsStream: _foundItems,
                     type: 'found',
                     searchQuery: _searchQuery,
                     selectedCategory: _selectedCategory,
@@ -503,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
             textInputAction: TextInputAction.search,
             onChanged: (val) => setState(() => _searchQuery = val.trim()),
             decoration: InputDecoration(
-              hintText: 'Search by keyword (title, desc, room)...',
+              hintText: 'Search items, places, or descriptions',
               hintStyle: TextStyle(
                 fontSize: 13,
                 color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
@@ -519,10 +506,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     )
                   : null,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
               filled: true,
-              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.45,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -693,7 +684,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     onPressed: _resetFilters,
-                    backgroundColor: colorScheme.errorContainer.withValues(alpha: 0.3),
+                    backgroundColor: colorScheme.errorContainer.withValues(
+                      alpha: 0.3,
+                    ),
                     side: BorderSide(
                       color: colorScheme.error.withValues(alpha: 0.4),
                     ),
@@ -737,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> {
 /// Builds the real-time list of items for a specific [type] ('lost' or 'found')
 /// with keyword search and category/location/status/date filters applied.
 class _ItemStreamList extends StatelessWidget {
-  final ItemService itemService;
+  final Stream<List<ItemModel>> itemsStream;
   final String type;
   final String searchQuery;
   final String? selectedCategory;
@@ -747,7 +740,7 @@ class _ItemStreamList extends StatelessWidget {
   final VoidCallback onResetFilters;
 
   const _ItemStreamList({
-    required this.itemService,
+    required this.itemsStream,
     required this.type,
     required this.searchQuery,
     required this.selectedCategory,
@@ -769,13 +762,11 @@ class _ItemStreamList extends StatelessWidget {
     final isLost = type == 'lost';
 
     return StreamBuilder<List<ItemModel>>(
-      stream: itemService.getItemsStream(type: type),
+      stream: itemsStream,
       builder: (context, snapshot) {
         // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         // Error state
@@ -794,9 +785,8 @@ class _ItemStreamList extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     'Unable to load items',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -818,8 +808,12 @@ class _ItemStreamList extends StatelessWidget {
         // Base empty state (no items reported at all in this tab)
         if (allItems.isEmpty) {
           return EmptyStateView(
-            icon: isLost ? Icons.search_off_rounded : Icons.check_circle_outline_rounded,
-            title: isLost ? 'No Lost Items Reported' : 'No Found Items Reported',
+            icon: isLost
+                ? Icons.search_off_rounded
+                : Icons.check_circle_outline_rounded,
+            title: isLost
+                ? 'No Lost Items Reported'
+                : 'No Found Items Reported',
             subtitle: isLost
                 ? 'Items reported as lost will appear here in real time.'
                 : 'Items reported as found will appear here in real time.',
@@ -835,8 +829,10 @@ class _ItemStreamList extends StatelessWidget {
             final matchesDesc = item.description.toLowerCase().contains(q);
             final matchesCat = item.category.toLowerCase().contains(q);
             final matchesLoc = item.location.toLowerCase().contains(q);
-            final matchesSpecific = item.specificLocation?.toLowerCase().contains(q) ?? false;
-            final matchesCustody = item.custodyLocation?.toLowerCase().contains(q) ?? false;
+            final matchesSpecific =
+                item.specificLocation?.toLowerCase().contains(q) ?? false;
+            final matchesCustody =
+                item.custodyLocation?.toLowerCase().contains(q) ?? false;
 
             if (!matchesTitle &&
                 !matchesDesc &&
@@ -850,14 +846,16 @@ class _ItemStreamList extends StatelessWidget {
 
           // 2. Category filter
           if (selectedCategory != null && selectedCategory != 'All') {
-            if (item.category.toLowerCase() != selectedCategory!.toLowerCase()) {
+            if (item.category.toLowerCase() !=
+                selectedCategory!.toLowerCase()) {
               return false;
             }
           }
 
           // 3. Location filter
           if (selectedLocation != null && selectedLocation != 'All') {
-            if (item.location.toLowerCase() != selectedLocation!.toLowerCase()) {
+            if (item.location.toLowerCase() !=
+                selectedLocation!.toLowerCase()) {
               return false;
             }
           }
@@ -886,8 +884,7 @@ class _ItemStreamList extends StatelessWidget {
           return EmptyStateView(
             icon: Icons.filter_alt_off_rounded,
             title: 'No Matching Items Found',
-            subtitle:
-                'Try adjusting your search query, category, location, status, or date filter.',
+            subtitle: 'Try adjusting your search query, category, location, status, or date filter.',
             actionButton: OutlinedButton.icon(
               onPressed: onResetFilters,
               icon: const Icon(Icons.restart_alt_rounded, size: 16),

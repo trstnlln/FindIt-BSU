@@ -1,12 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/user_model.dart';
 
 /// Handles all Firebase Auth and Firestore user operations.
 /// Screens never call Firebase directly — they go through this service.
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   // ─── Auth State ──────────────────────────────────────────────────────────
 
@@ -93,11 +94,8 @@ class AuthService {
       createdAt: DateTime.now(),
     );
 
-    // Attempt to persist profile to Firestore
-    try {
-      await _db.collection('users').doc(uid).set(fallbackUser.toMap());
-    } catch (_) {}
-
+    // Never write fallback data after a failed read: doing so can overwrite
+    // an existing profile while the device is offline or access is denied.
     return fallbackUser;
   }
 

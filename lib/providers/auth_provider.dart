@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
@@ -9,11 +12,15 @@ import '../services/auth_service.dart';
 /// previously logged in stays logged in across app launches without any extra
 /// work — Firebase persists the session automatically.
 class AuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final AuthService _authService;
 
   UserModel? _currentUser;
   bool _isInitialLoading = true;
   bool _isLoading = false;
+  bool _disposed = false;
+  int _authRevision = 0;
+  int _sessionRevision = 0;
+  StreamSubscription<User?>? _authSubscription;
 
   /// The currently logged-in user's profile, or null if not authenticated.
   UserModel? get currentUser => _currentUser;
@@ -27,35 +34,48 @@ class AuthProvider extends ChangeNotifier {
   /// Convenience getter — true if a user is signed in.
   bool get isLoggedIn => _currentUser != null;
 
-  AuthProvider() {
+  AuthProvider({AuthService? authService})
+    : _authService = authService ?? AuthService() {
     // Subscribe to Firebase auth changes immediately on creation.
-    _authService.authStateChanges.listen((firebaseUser) async {
-      await _onAuthStateChanged(firebaseUser);
-      if (_isInitialLoading) {
+    _authSubscription = _authService.authStateChanges.listen(
+      (firebaseUser) async {
+        await _onAuthStateChanged(firebaseUser);
+        if (_isInitialLoading) {
+          _isInitialLoading = false;
+          notifyListeners();
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        _currentUser = null;
         _isInitialLoading = false;
         notifyListeners();
-      }
-    });
+      },
+    );
   }
 
   // ─── Internal ─────────────────────────────────────────────────────────
 
   /// Called automatically by Firebase whenever auth state changes.
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
+    final revision = ++_authRevision;
     if (firebaseUser == null) {
+      ++_sessionRevision;
       _currentUser = null;
     } else {
       final email = firebaseUser.email ?? '';
       // Strict domain restriction: if not @g.batstate-u.edu.ph, force logout
-      if (email.isNotEmpty && !isBatStateUEmail(email)) {
+      if (!isBatStateUEmail(email)) {
         await _authService.logout();
         _currentUser = null;
         notifyListeners();
         return;
       }
       try {
-        _currentUser = await _authService.getUserData(firebaseUser.uid);
+        final user = await _authService.getUserData(firebaseUser.uid);
+        if (_disposed || revision != _authRevision) return;
+        _currentUser = user;
       } catch (e) {
+        if (_disposed || revision != _authRevision) return;
         // Fallback user if firestore throws, so user is never locked out
         _currentUser = UserModel(
           id: firebaseUser.uid,
@@ -78,7 +98,8 @@ class AuthProvider extends ChangeNotifier {
 
   /// Returns true if [email] ends with the official @g.batstate-u.edu.ph domain.
   static bool isBatStateUEmail(String email) {
-    return email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph');
+    return RegExp(r'^[^@\s]+@g\.batstate-u\.edu\.ph$')
+        .hasMatch(email.trim().toLowerCase());
   }
 
   // ─── Public Actions ───────────────────────────────────────────────────
@@ -94,14 +115,20 @@ class AuthProvider extends ChangeNotifier {
     if (!isBatStateUEmail(email)) {
       return 'Registration restricted: You must use an official @g.batstate-u.edu.ph email address.';
     }
+    if (_isLoading) return 'Please wait for the current request to finish.';
+    final session = _sessionRevision;
     _setLoading(true);
     try {
-      _currentUser = await _authService.registerWithEmail(
+      final user = await _authService.registerWithEmail(
         name: name,
-        email: email,
+        email: email.trim().toLowerCase(),
         password: password,
         role: role,
       );
+      if (_disposed || session != _sessionRevision) {
+        return 'Session changed. Please sign in again.';
+      }
+      _currentUser = user;
       notifyListeners();
       return null; // null = success
     } on FirebaseAuthException catch (e) {
@@ -122,13 +149,19 @@ class AuthProvider extends ChangeNotifier {
     if (!isBatStateUEmail(email)) {
       return 'Access Denied: Only users with a valid @g.batstate-u.edu.ph email address can log in.';
     }
+    if (_isLoading) return 'Please wait for the current request to finish.';
+    final session = _sessionRevision;
     _setLoading(true);
     try {
-      _currentUser = await _authService.loginWithEmail(
-        email: email,
+      final user = await _authService.loginWithEmail(
+        email: email.trim().toLowerCase(),
         password: password,
       );
-      if (_currentUser != null && !isBatStateUEmail(_currentUser!.email)) {
+      if (_disposed || session != _sessionRevision) {
+        return 'Session changed. Please sign in again.';
+      }
+      _currentUser = user;
+      if (!isBatStateUEmail(user.email)) {
         await logout();
         return 'Access Denied: Only users with a valid @g.batstate-u.edu.ph email address can log in.';
       }
@@ -143,67 +176,26 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// One-click demo login for quickly testing the app.
-  Future<String?> loginAsDemoUser({String role = 'student'}) async {
-    _setLoading(true);
-    try {
-      const demoEmail = 'student.demo@g.batstate-u.edu.ph';
-      const demoPass = 'Student@123';
-
-      try {
-        _currentUser = await _authService.loginWithEmail(
-          email: demoEmail,
-          password: demoPass,
-        );
-      } catch (_) {
-        try {
-          _currentUser = await _authService.registerWithEmail(
-            name: 'Demo Student',
-            email: demoEmail,
-            password: demoPass,
-            role: role,
-          );
-        } catch (regErr) {
-          final timestamp = DateTime.now().millisecondsSinceEpoch;
-          final fallbackDemoEmail = 'demo_$timestamp@g.batstate-u.edu.ph';
-          try {
-            _currentUser = await _authService.registerWithEmail(
-              name: 'Demo Student',
-              email: fallbackDemoEmail,
-              password: demoPass,
-              role: role,
-            );
-          } catch (_) {
-            try {
-              final anonCred =
-                  await FirebaseAuth.instance.signInAnonymously();
-              _currentUser = UserModel(
-                id: anonCred.user!.uid,
-                name: 'Demo Student',
-                email: 'demo@g.batstate-u.edu.ph',
-                role: role,
-                createdAt: DateTime.now(),
-              );
-            } catch (anonErr) {
-              return 'Could not authenticate demo user: $regErr';
-            }
-          }
-        }
-      }
-      notifyListeners();
-      return null;
-    } catch (e) {
-      return 'Demo login failed: $e';
-    } finally {
-      _setLoading(false);
-    }
-  }
-
   /// Signs the user out and clears local state.
   Future<void> logout() async {
+    ++_sessionRevision;
+    ++_authRevision;
     await _authService.logout();
     _currentUser = null;
     notifyListeners();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    ++_authRevision;
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   // ─── Error Mapping ────────────────────────────────────────────────────
