@@ -129,15 +129,46 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(BrandLogo), findsOneWidget);
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Register'), findsNothing);
+      await tester.tap(find.text('Sign in with email instead'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextFormField), findsNWidgets(2));
       await tester.ensureVisible(find.text('Log In'));
       await tester.tap(find.text('Log In'));
       await tester.pumpAndSettle();
       expect(find.text('Please enter your email.'), findsOneWidget);
       expect(find.text('Please enter your password.'), findsOneWidget);
       expect(service.loginCount, 0);
+      await tester.ensureVisible(find.text('Use university Google instead'));
+      await tester.tap(find.text('Use university Google instead'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Please enter your email.'), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('desktop without Google support keeps email sign-in available', (
+    tester,
+  ) async {
+    final service = TestAuthService();
+    final provider = AuthProvider(authService: service);
+    addTearDown(provider.dispose);
+    addTearDown(service.changes.close);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: provider,
+        child: MaterialApp(theme: AppTheme.light, home: const LoginScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(TextFormField), findsNWidgets(2));
+    expect(find.text('Continue with university Google account'), findsNothing);
+    expect(find.text('Sign in with email instead'), findsNothing);
+    expect(find.text('Register'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant({TargetPlatform.windows}));
 
   testWidgets(
     'found money report shows private verification on a narrow screen',

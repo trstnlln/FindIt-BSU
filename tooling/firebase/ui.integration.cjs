@@ -21,6 +21,7 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/RenderFlex|overflowed by|EXCEPTION CAUGHT|Unhandled Exception/.test(m.text()))errors.push(m.text());});
  await page.goto((process.env.TEST_APP_URL||'http://127.0.0.1:8081'),{waitUntil:'networkidle'});
  await page.locator('flt-semantics-placeholder').evaluate(el=>el.click());
+ await page.getByRole('button',{name:'Sign in with email instead',exact:true}).click();
  await typeInto(page,page.getByRole('textbox',{name:'University email',exact:true}),'qa.student@g.batstate-u.edu.ph');
  await typeInto(page,page.getByLabel('Password',{exact:true}),password);
  await page.getByRole('button',{name:'Log In',exact:true}).click();
@@ -50,6 +51,7 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  owner.on('pageerror',error=>errors.push(error.message));owner.on('console',m=>{if(m.type()==='error'&&/RenderFlex|overflowed by|EXCEPTION CAUGHT|Unhandled Exception/.test(m.text()))errors.push(m.text());});
  await owner.goto((process.env.TEST_APP_URL||'http://127.0.0.1:8081'),{waitUntil:'networkidle'});
  await owner.locator('flt-semantics-placeholder').evaluate(el=>el.click());
+ await owner.getByRole('button',{name:'Sign in with email instead',exact:true}).click();
  await typeInto(owner,owner.getByRole('textbox',{name:'University email',exact:true}),'qa.finder@g.batstate-u.edu.ph');
  await typeInto(owner,owner.getByLabel('Password',{exact:true}),password);
  await owner.getByRole('button',{name:'Log In',exact:true}).click();

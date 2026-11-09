@@ -6,7 +6,7 @@ import '../../widgets/university_sign_in_button.dart';
 import 'register_screen.dart';
 import '../../widgets/brand_logo.dart';
 
-/// Login screen — authenticates existing users with email and password.
+/// University Google sign-in with an optional email/password fallback.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _showEmailForm = !UniversitySignInButton.isSupported;
   String? _errorMessage;
 
   // Animation controller for the logo entrance
@@ -180,6 +181,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 const SizedBox(height: 24),
 
                                 UniversitySignInButton(
+                                  primary: true,
                                   onPressed: isLoading
                                       ? null
                                       : _continueWithUniversityAccount,
@@ -189,31 +191,51 @@ class _LoginScreenState extends State<LoginScreen>
                                   _buildErrorBanner(_errorMessage!),
                                   const SizedBox(height: 16),
                                 ],
-                                const Text(
-                                  'Or sign in with email',
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Email field
-                                _buildEmailField(colorScheme),
-                                const SizedBox(height: 16),
-
-                                // Password field
-                                _buildPasswordField(colorScheme),
-                                const SizedBox(height: 12),
-
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
+                                if (UniversitySignInButton.isSupported)
+                                  TextButton(
                                     onPressed: isLoading
                                         ? null
-                                        : _resetPassword,
-                                    child: const Text('Forgot password?'),
+                                        : () {
+                                            FocusScope.of(context).unfocus();
+                                            setState(() {
+                                              _showEmailForm = !_showEmailForm;
+                                              _errorMessage = null;
+                                            });
+                                          },
+                                    child: Text(
+                                      _showEmailForm
+                                          ? 'Use university Google instead'
+                                          : 'Sign in with email instead',
+                                    ),
                                   ),
-                                ),
-                                // Login button
-                                _buildLoginButton(isLoading, colorScheme),
+                                if (_showEmailForm) ...[
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    'Use your FindIt-BSU password, not your Google password.',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Email field
+                                  _buildEmailField(colorScheme),
+                                  const SizedBox(height: 16),
+
+                                  // Password field
+                                  _buildPasswordField(colorScheme),
+                                  const SizedBox(height: 12),
+
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: isLoading
+                                          ? null
+                                          : _resetPassword,
+                                      child: const Text('Forgot password?'),
+                                    ),
+                                  ),
+                                  // Login button
+                                  _buildLoginButton(isLoading, colorScheme),
+                                ],
                               ],
                             ),
                           ),
@@ -222,29 +244,30 @@ class _LoginScreenState extends State<LoginScreen>
 
                       const SizedBox(height: 20),
 
-                      // ── Register Link ────────────────────────────────────
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            "Don't have an account? ",
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: isLoading ? null : _goToRegister,
-                            child: Text(
-                              'Register',
+                      if (_showEmailForm)
+                        // ── Register Link ────────────────────────────────────
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              "Don't have an account? ",
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                            TextButton(
+                              onPressed: isLoading ? null : _goToRegister,
+                              child: Text(
+                                'Register',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
