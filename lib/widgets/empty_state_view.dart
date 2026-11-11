@@ -6,6 +6,7 @@ class EmptyStateView extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? actionButton;
+  final double bottomInset;
 
   const EmptyStateView({
     super.key,
@@ -13,6 +14,7 @@ class EmptyStateView extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.actionButton,
+    this.bottomInset = 0,
   });
 
   @override
@@ -21,49 +23,46 @@ class EmptyStateView extends StatelessWidget {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
+        padding: EdgeInsets.fromLTRB(32, 24, 32, 24 + bottomInset),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(26),
+                ),
+                child: Icon(icon, size: 36, color: colorScheme.primary),
               ),
-              child: Icon(
-                icon,
-                size: 36,
-                color: colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontSize: 14,
-                height: 1.3,
-              ),
-            ),
-            if (actionButton != null) ...[
               const SizedBox(height: 20),
-              actionButton!,
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 14,
+                  height: 1.3,
+                ),
+              ),
+              if (actionButton != null) ...[
+                const SizedBox(height: 20),
+                actionButton!,
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
-

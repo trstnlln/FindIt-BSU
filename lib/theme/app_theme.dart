@@ -5,6 +5,7 @@ abstract final class AppTheme {
   static const spartanRed = Color(0xFFC8102E);
   static const burgundy = spartanRed;
   static const ivory = Color(0xFFFFFFFF);
+  static const canvas = Color(0xFFF8F7F8);
   static const foundAccent = Color(0xFF70313C);
 
   static ThemeData get light {
@@ -27,7 +28,29 @@ abstract final class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: ivory,
+      scaffoldBackgroundColor: canvas,
+      textTheme: const TextTheme(
+        headlineSmall: TextStyle(
+          fontSize: 26,
+          height: 1.2,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.7,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 22,
+          height: 1.25,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -.4,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16,
+          height: 1.35,
+          fontWeight: FontWeight.w600,
+        ),
+        bodyLarge: TextStyle(fontSize: 16, height: 1.5),
+        bodyMedium: TextStyle(fontSize: 14, height: 1.5),
+        bodySmall: TextStyle(fontSize: 12, height: 1.45),
+      ),
       visualDensity: VisualDensity.standard,
       appBarTheme: AppBarTheme(
         backgroundColor: ivory,
@@ -39,6 +62,24 @@ abstract final class AppTheme {
           color: scheme.onSurface,
           fontSize: 20,
           fontWeight: FontWeight.w700,
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        showDragHandle: true,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        dividerColor: Colors.transparent,
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -58,10 +99,10 @@ abstract final class AppTheme {
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
-        margin: const EdgeInsets.symmetric(vertical: 6),
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .5)),
+          side: BorderSide(color: const Color(0xFFECE7E9)),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -93,7 +134,7 @@ abstract final class AppTheme {
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: burgundy,
         foregroundColor: Colors.white,
-        elevation: 2,
+        elevation: 0,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,

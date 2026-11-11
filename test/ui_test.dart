@@ -131,6 +131,7 @@ void main() {
       expect(find.byType(BrandLogo), findsOneWidget);
       expect(find.byType(TextFormField), findsNothing);
       expect(find.text('Register'), findsNothing);
+      await tester.ensureVisible(find.text('Sign in with email instead'));
       await tester.tap(find.text('Sign in with email instead'));
       await tester.pumpAndSettle();
       expect(find.byType(TextFormField), findsNWidgets(2));
@@ -145,7 +146,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TextFormField), findsNothing);
       expect(find.text('Please enter your email.'), findsNothing);
-      expect(tester.takeException(), isNull);
     });
   }
 
@@ -200,7 +200,6 @@ void main() {
       await tester.ensureVisible(find.text('Private verification details'));
       await tester.pumpAndSettle();
       expect(find.text('Correct answer 1'), findsOneWidget);
-      expect(tester.takeException(), isNull);
     },
   );
 

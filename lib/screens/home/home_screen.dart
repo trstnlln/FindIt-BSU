@@ -10,9 +10,8 @@ import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/item_service.dart';
 import '../../utils/helpers.dart';
-import '../../widgets/empty_state_view.dart';
-import '../../widgets/item_card.dart';
-import '../../widgets/brand_logo.dart';
+import '../../widgets/campus_report_feed.dart';
+import '../../widgets/campus_header.dart';
 import '../../widgets/alerts_bell.dart';
 import '../../services/community_service.dart';
 import '../../models/user_model.dart';
@@ -35,10 +34,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0; // 0 = Explore, 1 = My Activity, 2 = Campus Hub
 
   final ItemService _itemService = ItemService();
-  late final Stream<List<ItemModel>> _lostItems = _itemService.getItemsStream(
+  late Stream<List<ItemModel>> _lostItems = _itemService.getItemsStream(
     type: 'lost',
   );
-  late final Stream<List<ItemModel>> _foundItems = _itemService.getItemsStream(
+  late Stream<List<ItemModel>> _foundItems = _itemService.getItemsStream(
     type: 'found',
   );
   final TextEditingController _searchController = TextEditingController();
@@ -75,6 +74,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _retryFeed() {
+    setState(() {
+      _lostItems = _itemService.getItemsStream(type: 'lost');
+      _foundItems = _itemService.getItemsStream(type: 'found');
+    });
   }
 
   void _resetFilters() {
@@ -307,28 +313,33 @@ class _HomeScreenState extends State<HomeScreen> {
           const ProfileScreen(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() => _currentIndex = index);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.search_rounded),
-            selectedIcon: Icon(Icons.search_rounded),
-            label: 'Explore',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
-            selectedIcon: Icon(Icons.assignment_rounded),
-            label: 'My Activity',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-        ],
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xFFECE7E9))),
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) {
+            setState(() => _currentIndex = index);
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.search_rounded),
+              selectedIcon: Icon(Icons.search_rounded),
+              label: 'Explore',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.assignment_outlined),
+              selectedIcon: Icon(Icons.assignment_rounded),
+              label: 'My Activity',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
@@ -363,113 +374,55 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildExploreFeedScreen(ColorScheme colorScheme, UserModel? user) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Row(
-            children: [
-              const BrandLogo(size: 38),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'FindIt BSU',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  Text(
-                    user != null ? 'Hi, ${user.name}' : 'BSU Alangilan',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            pinned: true,
+            toolbarHeight:
+                72 + (MediaQuery.textScalerOf(context).scale(18) - 18) * 2,
+            title: CampusAppBarTitle(name: user?.name),
+            actions: const [AlertsBell(), SizedBox(width: 12)],
           ),
-          actions: [
-            const AlertsBell(),
-            IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              tooltip: 'Log out',
-              onPressed: () => _confirmLogout(context),
-            ),
-          ],
-          bottom: TabBar(
-            indicatorColor: colorScheme.primary,
-            indicatorWeight: 3,
-            labelColor: colorScheme.primary,
-            unselectedLabelColor: colorScheme.onSurfaceVariant,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-            tabs: const [
-              Tab(icon: Icon(Icons.search_rounded), text: 'Lost Items'),
-              Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Found Items'),
-            ],
-          ),
-        ),
-        body: Column(
-          children: [
-            // ── Search & Filter Controls ─────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Spartans look out for Spartans.',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -.6,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Lost something? Let’s bring it home.',
-                      style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 13,
-                      ),
-                    ),
+          const SliverToBoxAdapter(child: CampusWelcome()),
+          SliverToBoxAdapter(child: _buildSearchAndFilterHeader(colorScheme)),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _FeedTabs(
+              height: 56 + (MediaQuery.textScalerOf(context).scale(14) - 14),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: TabBar(
+                  dividerHeight: 0,
+                  indicator: BoxDecoration(
+                    color: colorScheme.primary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  labelColor: colorScheme.onPrimary,
+                  unselectedLabelColor: colorScheme.onSurfaceVariant,
+                  tabs: const [
+                    Tab(text: 'Lost Items'),
+                    Tab(text: 'Found Items'),
                   ],
                 ),
               ),
             ),
-            _buildSearchAndFilterHeader(colorScheme),
-
-            // ── Tab View Feed ────────────────────────────────────────
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _ItemStreamList(
-                    itemsStream: _lostItems,
-                    type: 'lost',
-                    searchQuery: _searchQuery,
-                    selectedCategory: _selectedCategory,
-                    selectedLocation: _selectedLocation,
-                    selectedStatus: _selectedStatus,
-                    selectedDate: _selectedDate,
-                    onResetFilters: _resetFilters,
-                  ),
-                  _ItemStreamList(
-                    itemsStream: _foundItems,
-                    type: 'found',
-                    searchQuery: _searchQuery,
-                    selectedCategory: _selectedCategory,
-                    selectedLocation: _selectedLocation,
-                    selectedStatus: _selectedStatus,
-                    selectedDate: _selectedDate,
-                    onResetFilters: _resetFilters,
-                  ),
-                ],
+          ),
+        ],
+        body: TabBarView(
+          children: [
+            for (final type in ['lost', 'found'])
+              CampusReportFeed(
+                key: ValueKey(type),
+                itemsStream: type == 'lost' ? _lostItems : _foundItems,
+                type: type,
+                searchQuery: _searchQuery,
+                selectedCategory: _selectedCategory,
+                selectedLocation: _selectedLocation,
+                selectedStatus: _selectedStatus,
+                selectedDate: _selectedDate,
+                onResetFilters: _resetFilters,
+                onRetry: _retryFeed,
               ),
-            ),
           ],
         ),
       ),
@@ -487,9 +440,9 @@ class _HomeScreenState extends State<HomeScreen> {
         : null;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
           bottom: BorderSide(
             color: colorScheme.outlineVariant.withValues(alpha: 0.3),
@@ -504,7 +457,9 @@ class _HomeScreenState extends State<HomeScreen> {
             textInputAction: TextInputAction.search,
             onChanged: (val) => setState(() => _searchQuery = val.trim()),
             decoration: InputDecoration(
-              hintText: 'Search items, places, or descriptions',
+              hintText: 'Search items or places',
+              labelText: 'Search campus reports',
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
               hintStyle: TextStyle(
                 fontSize: 13,
                 color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
@@ -556,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Saved. New matching reports will appear in your alerts.',
+                              'Search saved. Open it from Profile → Saved searches.',
                             ),
                           ),
                         );
@@ -749,208 +704,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  void _confirmLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out of FindIt BSU?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.read<AuthProvider>().logout();
-            },
-            child: const Text('Log Out'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-/// Builds the real-time list of items for a specific [type] ('lost' or 'found')
-/// with keyword search and category/location/status/date filters applied.
-class _ItemStreamList extends StatelessWidget {
-  final Stream<List<ItemModel>> itemsStream;
-  final String type;
-  final String searchQuery;
-  final String? selectedCategory;
-  final String? selectedLocation;
-  final String? selectedStatus;
-  final DateTime? selectedDate;
-  final VoidCallback onResetFilters;
-
-  const _ItemStreamList({
-    required this.itemsStream,
-    required this.type,
-    required this.searchQuery,
-    required this.selectedCategory,
-    required this.selectedLocation,
-    required this.selectedStatus,
-    required this.selectedDate,
-    required this.onResetFilters,
-  });
-
-  bool get _isFiltering =>
-      searchQuery.isNotEmpty ||
-      selectedCategory != null ||
-      selectedLocation != null ||
-      selectedStatus != null ||
-      selectedDate != null;
-
+class _FeedTabs extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+  const _FeedTabs({required this.child, required this.height});
   @override
-  Widget build(BuildContext context) {
-    final isLost = type == 'lost';
-
-    return StreamBuilder<List<ItemModel>>(
-      stream: itemsStream,
-      builder: (context, snapshot) {
-        // Loading state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // Error state
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline_rounded,
-                    size: 56,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Unable to load items',
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        final allItems = snapshot.data ?? [];
-
-        // Base empty state (no items reported at all in this tab)
-        if (allItems.isEmpty) {
-          return EmptyStateView(
-            icon: isLost
-                ? Icons.search_off_rounded
-                : Icons.check_circle_outline_rounded,
-            title: isLost
-                ? 'No Lost Items Reported'
-                : 'No Found Items Reported',
-            subtitle: isLost
-                ? 'Items reported as lost will appear here in real time.'
-                : 'Items reported as found will appear here in real time.',
-          );
-        }
-
-        // Apply Search & Filters
-        final filteredItems = allItems.where((item) {
-          // 1. Keyword search (matches title, description, category, location, or room)
-          if (searchQuery.isNotEmpty) {
-            final q = searchQuery.toLowerCase();
-            final matchesTitle = item.title.toLowerCase().contains(q);
-            final matchesDesc = item.description.toLowerCase().contains(q);
-            final matchesCat = item.category.toLowerCase().contains(q);
-            final matchesLoc = item.location.toLowerCase().contains(q);
-            final matchesSpecific =
-                item.specificLocation?.toLowerCase().contains(q) ?? false;
-            final matchesCustody =
-                item.custodyLocation?.toLowerCase().contains(q) ?? false;
-
-            if (!matchesTitle &&
-                !matchesDesc &&
-                !matchesCat &&
-                !matchesLoc &&
-                !matchesSpecific &&
-                !matchesCustody) {
-              return false;
-            }
-          }
-
-          // 2. Category filter
-          if (selectedCategory != null && selectedCategory != 'All') {
-            if (item.category.toLowerCase() !=
-                selectedCategory!.toLowerCase()) {
-              return false;
-            }
-          }
-
-          // 3. Location filter
-          if (selectedLocation != null && selectedLocation != 'All') {
-            if (item.location.toLowerCase() !=
-                selectedLocation!.toLowerCase()) {
-              return false;
-            }
-          }
-
-          // 4. Status filter
-          if (selectedStatus != null) {
-            if (item.status.toLowerCase() != selectedStatus!.toLowerCase()) {
-              return false;
-            }
-          }
-
-          // 5. Date filter (exact day match)
-          if (selectedDate != null) {
-            if (item.date.year != selectedDate!.year ||
-                item.date.month != selectedDate!.month ||
-                item.date.day != selectedDate!.day) {
-              return false;
-            }
-          }
-
-          return true;
-        }).toList();
-
-        // Filtered empty state (items exist, but none match criteria)
-        if (filteredItems.isEmpty && _isFiltering) {
-          return EmptyStateView(
-            icon: Icons.filter_alt_off_rounded,
-            title: 'No Matching Items Found',
-            subtitle: 'Try adjusting your search query, category, location, status, or date filter.',
-            actionButton: OutlinedButton.icon(
-              onPressed: onResetFilters,
-              icon: const Icon(Icons.restart_alt_rounded, size: 16),
-              label: const Text('Reset Search & Filters'),
-            ),
-          );
-        }
-
-        // Populated List using extracted modular ItemCard
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          itemCount: filteredItems.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final item = filteredItems[index];
-            return ItemCard(item: item);
-          },
-        );
-      },
-    );
-  }
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => Material(color: Theme.of(context).scaffoldBackgroundColor, child: child);
+  @override
+  bool shouldRebuild(covariant _FeedTabs oldDelegate) =>
+      height != oldDelegate.height || child != oldDelegate.child;
 }

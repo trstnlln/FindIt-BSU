@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 class UniversitySignInButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool primary;
+  final bool isLoading;
   const UniversitySignInButton({
     super.key,
     required this.onPressed,
     this.primary = false,
+    this.isLoading = false,
   });
 
   static bool get isSupported =>
@@ -27,7 +29,13 @@ class UniversitySignInButton extends StatelessWidget {
         textAlign: TextAlign.center,
       ),
     );
-    const icon = Icon(Icons.school_outlined, size: 22);
+    final icon = isLoading
+        ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : const Icon(Icons.school_outlined, size: 22);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

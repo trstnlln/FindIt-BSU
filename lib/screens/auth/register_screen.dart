@@ -130,6 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 28),
 
                 UniversitySignInButton(
+                  isLoading: isLoading,
                   onPressed: isLoading ? null : _continueWithUniversityAccount,
                 ),
                 if (_errorMessage != null) ...[

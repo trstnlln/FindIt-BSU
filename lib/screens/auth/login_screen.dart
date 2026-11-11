@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 350),
     );
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _slideUp = Tween<Offset>(
@@ -42,6 +42,12 @@ class _LoginScreenState extends State<LoginScreen>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) _animController.value = 1;
   }
 
   @override
@@ -129,10 +135,11 @@ class _LoginScreenState extends State<LoginScreen>
     final isLoading = context.watch<AuthProvider>().isLoading;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
           child: FadeTransition(
             opacity: _fadeIn,
             child: Center(
@@ -143,37 +150,60 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 12),
 
                       // ── Logo & Branding ──────────────────────────────────
                       _buildLogo(colorScheme),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Lost things.',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontSize: 32,
+                          height: 1.12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.2,
+                        ),
+                      ),
+                      Text(
+                        'Found together.',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontSize: 32,
+                          height: 1.12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.2,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Your campus community for finding what matters.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
 
                       // ── Form Card ────────────────────────────────────────
                       Card(
                         elevation: 0,
                         color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
                         child: Padding(
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(20),
                           child: Form(
                             key: _formKey,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
-                                  'A little lost? We can help.',
-                                  style: theme.textTheme.headlineSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.onSurface,
-                                      ),
+                                  'Welcome, Spartan.',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Sign in to reconnect with what matters.',
+                                  'Use your university account to get started.',
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
                                   ),
@@ -182,13 +212,17 @@ class _LoginScreenState extends State<LoginScreen>
 
                                 UniversitySignInButton(
                                   primary: true,
+                                  isLoading: isLoading,
                                   onPressed: isLoading
                                       ? null
                                       : _continueWithUniversityAccount,
                                 ),
                                 const SizedBox(height: 20),
                                 if (_errorMessage != null) ...[
-                                  _buildErrorBanner(_errorMessage!),
+                                  Semantics(
+                                    liveRegion: true,
+                                    child: _buildErrorBanner(_errorMessage!),
+                                  ),
                                   const SizedBox(height: 16),
                                 ],
                                 if (UniversitySignInButton.isSupported)
@@ -282,26 +316,33 @@ class _LoginScreenState extends State<LoginScreen>
   // ─── Widget Helpers ─────────────────────────────────────────────────────
 
   Widget _buildLogo(ColorScheme colorScheme) {
-    return Column(
+    return Row(
       children: [
-        const BrandLogo(size: 88),
-        const SizedBox(height: 16),
-        Text(
-          'FindIt BSU',
-          style: TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w900,
-            color: colorScheme.primary,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Lost things. Found together.',
-          style: TextStyle(
-            fontSize: 13,
-            color: colorScheme.onSurfaceVariant,
-            letterSpacing: 0.3,
+        const BrandLogo(size: 52),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'FindIt BSU',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: colorScheme.primary,
+                  letterSpacing: -.7,
+                ),
+              ),
+              Text(
+                'ALANGILAN CAMPUS',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.4,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
       ],

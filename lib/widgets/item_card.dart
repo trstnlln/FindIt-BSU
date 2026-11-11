@@ -15,13 +15,14 @@ class ItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final lost = item.type == 'lost';
-    final accent = lost ? AppTheme.burgundy : AppTheme.foundAccent;
+    final accent = lost ? AppTheme.spartanRed : AppTheme.foundAccent;
     final location = [
       item.location,
       if (item.specificLocation?.trim().isNotEmpty == true)
         item.specificLocation!,
     ].join(' · ');
     final custody = item.custodyLocation;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -31,11 +32,14 @@ class ItemCard extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -43,7 +47,7 @@ class ItemCard extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: .08),
+                      color: accent.withValues(alpha: .07),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -56,152 +60,180 @@ class ItemCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      formatTimeAgo(item.createdAt),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.onSurfaceVariant,
-                      ),
+                  StatusChip(status: item.status),
+                  Text(
+                    formatTimeAgo(item.createdAt),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
-                  StatusChip(status: item.status),
                 ],
               ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CachedImage(
+              const SizedBox(height: 18),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked =
+                      constraints.maxWidth < 270 ||
+                      MediaQuery.textScalerOf(context).scale(14) > 21;
+                  final image = CachedImage(
                     imageUrl: item.photoUrl,
-                    width: 84,
-                    height: 92,
-                    borderRadius: 14,
+                    width: stacked ? constraints.maxWidth : 88,
+                    height: stacked ? 130 : 100,
+                    borderRadius: 16,
                     fallbackWidget: Container(
-                      width: 84,
-                      height: 92,
+                      width: stacked ? constraints.maxWidth : 88,
+                      height: stacked ? 130 : 100,
                       decoration: BoxDecoration(
-                        color: accent.withValues(alpha: .06),
-                        borderRadius: BorderRadius.circular(14),
+                        color: const Color(0xFFF8F3F4),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         getCategoryIcon(item.category),
-                        size: 34,
+                        size: 36,
                         color: accent,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.category,
-                          style: TextStyle(
-                            fontSize: 11,
+                  );
+                  final details = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.category,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        item.title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                          letterSpacing: -.3,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 15,
                             color: scheme.onSurfaceVariant,
                           ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          item.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            height: 1.25,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 14,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                location,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: scheme.onSurfaceVariant,
-                                  height: 1.3,
-                                ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              location,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.onSurfaceVariant,
+                                height: 1.4,
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    size: 13,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      formatDate(item.date),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.onSurfaceVariant,
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
+                    ],
+                  );
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [image, const SizedBox(height: 14), details],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      image,
+                      const SizedBox(width: 14),
+                      Expanded(child: details),
+                    ],
+                  );
+                },
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Divider(height: 1),
+              ),
+              Wrap(
+                spacing: 20,
+                runSpacing: 8,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
                   Text(
-                    'View details',
+                    formatDate(item.date),
                     style: TextStyle(
                       fontSize: 12,
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 16,
-                    color: scheme.primary,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'View details',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 16,
+                        color: scheme.primary,
+                      ),
+                    ],
                   ),
                 ],
               ),
               if (!lost &&
+                  item.status != 'returned' &&
+                  item.status != 'closed' &&
                   custody != null &&
                   custody.trim().isNotEmpty &&
                   custody != 'With Finder (Not Surrendered)') ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.verified_user_outlined,
-                      size: 14,
-                      color: AppTheme.foundAccent,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Safe at $custody',
-                        style: const TextStyle(
-                          color: AppTheme.foundAccent,
-                          fontSize: 12,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF5F6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.verified_user_outlined,
+                        size: 15,
+                        color: AppTheme.foundAccent,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Safe at $custody',
+                          style: const TextStyle(
+                            color: AppTheme.foundAccent,
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],

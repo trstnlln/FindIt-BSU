@@ -192,8 +192,13 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e is FormatException ? e.message : 'Could not open a photo. Check camera or photo permissions and try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is FormatException ? e.message : 'Could not open a photo. Check camera or photo permissions and try again.',
+            ),
+          ),
+        );
       }
     }
   }
@@ -823,7 +828,8 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       onTap: _showImageSourcePicker,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 110,
+        constraints: const BoxConstraints(minHeight: 110),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -853,6 +859,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
               const SizedBox(height: 2),
               Text(
                 'Photos help others identify your item faster',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
                   color: colorScheme.onSurfaceVariant,

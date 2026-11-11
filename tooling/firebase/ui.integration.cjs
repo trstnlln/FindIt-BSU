@@ -11,7 +11,7 @@ let browser;let page;let owner;
 async function typeInto(p,locator,text){await locator.click();await p.waitForTimeout(150);await p.keyboard.type(text,{delay:15});await p.waitForTimeout(150);assert.equal(await locator.inputValue(),text);}
 (async()=>{
  const auth=getAuth(app);const password='Local-test-only-123!';
- for(const [uid,email,name]of [['ui-student','qa.student@g.batstate-u.edu.ph','QA Student'],['ui-finder','qa.finder@g.batstate-u.edu.ph','QA Finder']]){
+ for(const [uid,email,name]of [['ui-student','qa.student@g.batstate-u.edu.ph','QA Student With A Long University Account Name'],['ui-finder','qa.finder@g.batstate-u.edu.ph','QA Finder']]){
   await auth.createUser({uid,email,password,displayName:name,emailVerified:true});
   await db.doc('users/'+uid).set({name,email,role:'student',createdAt:Date.now()});
  }
@@ -21,6 +21,8 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/RenderFlex|overflowed by|EXCEPTION CAUGHT|Unhandled Exception/.test(m.text()))errors.push(m.text());});
  await page.goto((process.env.TEST_APP_URL||'http://127.0.0.1:8081'),{waitUntil:'networkidle'});
  await page.locator('flt-semantics-placeholder').evaluate(el=>el.click());
+ await page.getByRole('button',{name:'Sign in with email instead',exact:true}).waitFor();
+ await page.screenshot({path:require('node:path').join(output,'findit-aesthetic-sign-in.png'),fullPage:true});
  await page.getByRole('button',{name:'Sign in with email instead',exact:true}).click();
  await typeInto(page,page.getByRole('textbox',{name:'University email',exact:true}),'qa.student@g.batstate-u.edu.ph');
  await typeInto(page,page.getByLabel('Password',{exact:true}),password);
@@ -30,9 +32,20 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  await page.getByText('Spartans look out for Spartans.',{exact:true}).waitFor();
  await page.screenshot({path:require('node:path').join(output,'findit-spartan-home.png'),fullPage:true});
  require('node:fs').writeFileSync(require('node:path').join(output,'findit-home-aria.txt'),await page.locator('body').ariaSnapshot());
+ await page.setViewportSize({width:320,height:640});
+ await page.waitForTimeout(250);
+ await page.screenshot({path:require('node:path').join(output,'findit-home-narrow.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:420});
+ await page.getByRole('textbox',{name:'Search campus reports',exact:true}).click();
+ await page.waitForTimeout(250);
+ await page.setViewportSize({width:390,height:844});
  await page.getByRole('tab',{name:/Found Items/}).click();
  await page.waitForTimeout(700);
  await page.screenshot({path:require('node:path').join(output,'findit-spartan-found-feed.png'),fullPage:true});
+ await typeInto(page,page.getByRole('textbox',{name:'Search campus reports',exact:true}),'no-such-item');
+ await page.keyboard.press('Tab');
+ await page.getByText('No matches just yet',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Clear search',exact:true}).click();
  await page.getByText('Black Casio calculator',{exact:false}).click();
  await page.getByRole('button',{name:'Claim This Item',exact:true}).click();
  await page.getByLabel('Message to reporter',{exact:true}).fill('I left my calculator in the library.');
