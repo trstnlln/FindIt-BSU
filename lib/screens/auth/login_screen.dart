@@ -133,176 +133,215 @@ class _LoginScreenState extends State<LoginScreen>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isLoading = context.watch<AuthProvider>().isLoading;
+    final compact =
+        MediaQuery.sizeOf(context).width < 360 ||
+        MediaQuery.sizeOf(context).height < 760;
+    final verticalPadding = compact ? 20.0 : 32.0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-          child: FadeTransition(
-            opacity: _fadeIn,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: SlideTransition(
-                  position: _slideUp,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 12),
-
-                      // ── Logo & Branding ──────────────────────────────────
-                      _buildLogo(colorScheme),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Lost things.',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontSize: 32,
-                          height: 1.12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1.2,
-                        ),
-                      ),
-                      Text(
-                        'Found together.',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontSize: 32,
-                          height: 1.12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1.2,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Your campus community for finding what matters.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // ── Form Card ────────────────────────────────────────
-                      Card(
-                        elevation: 0,
-                        color: Colors.white,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text(
-                                  'Welcome, Spartan.',
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Use your university account to get started.',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                UniversitySignInButton(
-                                  primary: true,
-                                  isLoading: isLoading,
-                                  onPressed: isLoading
-                                      ? null
-                                      : _continueWithUniversityAccount,
-                                ),
-                                const SizedBox(height: 20),
-                                if (_errorMessage != null) ...[
-                                  Semantics(
-                                    liveRegion: true,
-                                    child: _buildErrorBanner(_errorMessage!),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-                                if (UniversitySignInButton.isSupported)
-                                  TextButton(
-                                    onPressed: isLoading
-                                        ? null
-                                        : () {
-                                            FocusScope.of(context).unfocus();
-                                            setState(() {
-                                              _showEmailForm = !_showEmailForm;
-                                              _errorMessage = null;
-                                            });
-                                          },
-                                    child: Text(
-                                      _showEmailForm
-                                          ? 'Use university Google instead'
-                                          : 'Sign in with email instead',
-                                    ),
-                                  ),
-                                if (_showEmailForm) ...[
-                                  const SizedBox(height: 20),
-                                  Text(
-                                    'Use your FindIt-BSU password, not your Google password.',
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  // Email field
-                                  _buildEmailField(colorScheme),
-                                  const SizedBox(height: 16),
-
-                                  // Password field
-                                  _buildPasswordField(colorScheme),
-                                  const SizedBox(height: 12),
-
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: isLoading
-                                          ? null
-                                          : _resetPassword,
-                                      child: const Text('Forgot password?'),
-                                    ),
-                                  ),
-                                  // Login button
-                                  _buildLoginButton(isLoading, colorScheme),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      if (_showEmailForm)
-                        // ── Register Link ────────────────────────────────────
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
+        child: LayoutBuilder(
+          builder: (context, viewport) => SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: verticalPadding,
+            ),
+            child: FadeTransition(
+              opacity: _fadeIn,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 480,
+                    minHeight: (viewport.maxHeight - verticalPadding * 2).clamp(
+                      0.0,
+                      double.infinity,
+                    ),
+                  ),
+                  child: SlideTransition(
+                    position: _slideUp,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            SizedBox(height: compact ? 0 : 12),
+
+                            // ── Logo & Branding ──────────────────────────────────
+                            _buildLogo(colorScheme, compact: compact),
+                            SizedBox(height: compact ? 20 : 24),
                             Text(
-                              "Don't have an account? ",
+                              'Lost things.',
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontSize: 32,
+                                height: 1.12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -1.2,
+                              ),
+                            ),
+                            Text(
+                              'Found together.',
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontSize: 32,
+                                height: 1.12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -1.2,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Your campus community for finding what matters.',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            TextButton(
-                              onPressed: isLoading ? null : _goToRegister,
-                              child: Text(
-                                'Register',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
+                            SizedBox(height: compact ? 20 : 28),
+
+                            // ── Form Card ────────────────────────────────────────
+                            Card(
+                              elevation: 0,
+                              color: Colors.white,
+                              child: Padding(
+                                padding: EdgeInsets.all(compact ? 18 : 20),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        'Welcome, Spartan.',
+                                        style: theme.textTheme.titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Use your university account to get started.',
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                      SizedBox(height: compact ? 16 : 24),
+
+                                      UniversitySignInButton(
+                                        primary: true,
+                                        isLoading: isLoading,
+                                        onPressed: isLoading
+                                            ? null
+                                            : _continueWithUniversityAccount,
+                                      ),
+                                      SizedBox(height: compact ? 8 : 20),
+                                      if (_errorMessage != null) ...[
+                                        Semantics(
+                                          liveRegion: true,
+                                          child: _buildErrorBanner(
+                                            _errorMessage!,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                      ],
+                                      if (UniversitySignInButton.isSupported)
+                                        TextButton(
+                                          onPressed: isLoading
+                                              ? null
+                                              : () {
+                                                  FocusScope.of(context)
+                                                      .unfocus();
+                                                  setState(() {
+                                                    _showEmailForm =
+                                                        !_showEmailForm;
+                                                    _errorMessage = null;
+                                                  });
+                                                },
+                                          child: Text(
+                                            _showEmailForm
+                                                ? 'Use university Google instead'
+                                                : 'Sign in with email instead',
+                                          ),
+                                        ),
+                                      if (_showEmailForm) ...[
+                                        const SizedBox(height: 20),
+                                        Text(
+                                          'Use your FindIt-BSU password, not your Google password.',
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                        const SizedBox(height: 16),
+
+                                        // Email field
+                                        _buildEmailField(colorScheme),
+                                        const SizedBox(height: 16),
+
+                                        // Password field
+                                        _buildPasswordField(colorScheme),
+                                        const SizedBox(height: 12),
+
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton(
+                                            onPressed: isLoading
+                                                ? null
+                                                : _resetPassword,
+                                            child: const Text(
+                                              'Forgot password?',
+                                            ),
+                                          ),
+                                        ),
+                                        // Login button
+                                        _buildLoginButton(
+                                          isLoading,
+                                          colorScheme,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
+
+                            if (_showEmailForm) const SizedBox(height: 20),
+
+                            if (_showEmailForm)
+                              // ── Register Link ────────────────────────────────────
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    "Don't have an account? ",
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: isLoading ? null : _goToRegister,
+                                    child: Text(
+                                      'Register',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
-                    ],
+                        Padding(
+                          padding: EdgeInsets.only(top: compact ? 20 : 24),
+                          child: _RecoveryGuide(compact: compact),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -315,10 +354,10 @@ class _LoginScreenState extends State<LoginScreen>
 
   // ─── Widget Helpers ─────────────────────────────────────────────────────
 
-  Widget _buildLogo(ColorScheme colorScheme) {
+  Widget _buildLogo(ColorScheme colorScheme, {required bool compact}) {
     return Row(
       children: [
-        const BrandLogo(size: 52),
+        BrandLogo(size: compact ? 48 : 52),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -459,5 +498,143 @@ class _LoginScreenState extends State<LoginScreen>
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
     );
+  }
+}
+
+/// A short introduction to the recovery process before students sign in.
+class _RecoveryGuide extends StatelessWidget {
+  final bool compact;
+  const _RecoveryGuide({required this.compact});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: EdgeInsets.all(compact ? 16 : 20),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: .55),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'A little help goes a long way.',
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(color: scheme.onPrimaryContainer),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Three steps to a happy reunion.',
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 20),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 240 ||
+                  MediaQuery.textScalerOf(context).scale(12) > 18;
+              final steps = [
+                _step(
+                  context,
+                  Icons.search_rounded,
+                  'Find',
+                  'Browse reports',
+                  stacked,
+                ),
+                _step(
+                  context,
+                  Icons.verified_user_outlined,
+                  'Verify',
+                  'Show your proof',
+                  stacked,
+                ),
+                _step(
+                  context,
+                  Icons.handshake_outlined,
+                  'Reunite',
+                  'Meet on campus',
+                  stacked,
+                ),
+              ];
+              if (stacked) {
+                return Column(
+                  children: [
+                    for (var i = 0; i < steps.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 16),
+                      steps[i],
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < steps.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 12),
+                    Expanded(child: steps[i]),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _step(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String description,
+    bool stacked,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final symbol = Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, size: 20, color: scheme.primary),
+    );
+    final text = Column(
+      crossAxisAlignment: stacked
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: scheme.onPrimaryContainer,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          description,
+          textAlign: stacked ? TextAlign.start : TextAlign.center,
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.4,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    if (stacked) {
+      return Row(
+        children: [
+          symbol,
+          const SizedBox(width: 12),
+          Expanded(child: text),
+        ],
+      );
+    }
+    return Column(children: [symbol, const SizedBox(height: 8), text]);
   }
 }

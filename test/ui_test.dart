@@ -149,6 +149,52 @@ void main() {
     });
   }
 
+  for (final layout in [(1200.0, 1.0), (500.0, 2.0)]) {
+    testWidgets('login balances its footer and scrolls at $layout', (
+      tester,
+    ) async {
+      final (height, scale) = layout;
+      tester.view.physicalSize = Size(390, height);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final service = TestAuthService();
+      final provider = AuthProvider(authService: service);
+      addTearDown(provider.dispose);
+      addTearDown(service.changes.close);
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: provider,
+          child: MaterialApp(
+            theme: AppTheme.light,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
+            home: const LoginScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final footer = find.text('Meet on campus');
+      if (scale == 1) {
+        expect(tester.getBottomRight(footer).dy, lessThan(height));
+        expect(tester.getBottomRight(footer).dy, greaterThan(height * .75));
+      }
+      await tester.ensureVisible(footer);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Sign in with email instead'));
+      await tester.tap(find.text('Sign in with email instead'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Log In'));
+      await tester.tap(find.text('Log In'));
+      await tester.pumpAndSettle();
+      expect(find.text('Please enter your email.'), findsOneWidget);
+      expect(find.text('Please enter your password.'), findsOneWidget);
+    });
+  }
+
   testWidgets('desktop without Google support keeps email sign-in available', (
     tester,
   ) async {
