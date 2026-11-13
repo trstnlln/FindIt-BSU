@@ -180,20 +180,30 @@ class AuthService {
       final doc = await _db.collection('users').doc(uid).get();
 
       if (doc.exists && doc.data() != null) {
-        return UserModel.fromMap(doc.data()!, doc.id);
+        final profile = UserModel.fromMap(doc.data()!, doc.id);
+        final signedIn = _auth.currentUser;
+        // Older profiles may predate photo import. Keep the photo scoped to
+        // this identity and never replace other saved profile information.
+        if (signedIn?.uid == uid &&
+            (profile.photoUrl?.trim().isEmpty ?? true)) {
+          return profile.copyWith(photoUrl: signedIn?.photoURL);
+        }
+        return profile;
       }
     } catch (_) {
       // Continue to fallback if firestore read fails or document is missing
     }
 
     // Fallback: construct UserModel from Auth info
-    final fbUser = _auth.currentUser;
+    final current = _auth.currentUser;
+    final fbUser = current?.uid == uid ? current : null;
     final fallbackUser = UserModel(
       id: uid,
       name: fbUser?.displayName?.isNotEmpty == true
           ? fbUser!.displayName!
           : (fbUser?.email?.split('@').first ?? 'BSU User'),
       email: fbUser?.email ?? '',
+      photoUrl: fbUser?.photoURL,
       role: await isApprovedStaff(uid) ? 'staff' : 'student',
       createdAt: DateTime.now(),
     );

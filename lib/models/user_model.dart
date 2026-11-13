@@ -7,7 +7,7 @@ class UserModel {
   final String name; // Display name
   final String email; // Email address used for login
   final String role; // 'student', 'teacher', or 'staff'
-  final String? photoUrl; // Optional profile photo URL (Firebase Storage)
+  final String? photoUrl; // Optional Google account or saved profile photo URL
   final DateTime createdAt; // Account creation timestamp
 
   const UserModel({

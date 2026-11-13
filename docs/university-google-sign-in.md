@@ -95,3 +95,7 @@ After setup, test on a real Android/iOS device and verify:
 
 The profile uses the existing Firestore `users` collection schema. This feature
 does not require additional Firestore rule changes.
+
+## Profile picture
+
+The Profile screen displays the saved Google account picture. Sign in using **Continue with Google** to import or refresh it; entering a university email/password alone does not look up a Google photo. Older profiles with no saved picture can use the same signed-in Firebase identity’s photo. Missing or unreachable pictures show the user’s initial instead. Web rendering supports Google photos even when the host does not permit canvas CORS access.

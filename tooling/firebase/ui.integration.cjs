@@ -6,6 +6,7 @@ const {getFirestore}=fromFunctions('firebase-admin/firestore');
 const assert=require('node:assert/strict');
 if(!process.env.FIRESTORE_EMULATOR_HOST||!process.env.FIREBASE_AUTH_EMULATOR_HOST||process.env.GCLOUD_PROJECT!=='demo-finditbsu')throw Error('Demo emulators required');
 const app=initializeApp({projectId:'demo-finditbsu'});const db=getFirestore(app);
+const avatarUrl='https://www.gstatic.com/findit-local-test-avatar.png';
 const fs=require('node:fs');const output=require('node:path').join(__dirname,'test-results');fs.mkdirSync(output,{recursive:true});
 let browser;let page;let owner;
 async function typeInto(p,locator,text){await locator.click();await p.waitForTimeout(150);await p.keyboard.type(text,{delay:15});await p.waitForTimeout(150);assert.equal(await locator.inputValue(),text);}
@@ -14,12 +15,13 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  for(const [uid,email,name]of [['ui-student','qa.student@g.batstate-u.edu.ph','QA Student With A Long University Account Name'],['ui-finder','qa.finder@g.batstate-u.edu.ph','QA Finder'],['ui-staff','approved.staff@example.org','Approved Staff'],['ui-outsider','unapproved@example.org','Unapproved Person']]){
   await auth.createUser({uid,email,password,displayName:name,emailVerified:true});
   if(uid==='ui-staff')await auth.setCustomUserClaims(uid,{staff:true});
-  await db.doc('users/'+uid).set({name,email,role:uid==='ui-staff'||uid==='ui-outsider'?'staff':'student',createdAt:Date.now()});
+  await db.doc('users/'+uid).set({name,email,role:uid==='ui-staff'||uid==='ui-outsider'?'staff':'student',photoUrl:uid==='ui-student'?avatarUrl:null,createdAt:Date.now()});
  }
  await db.doc('items/ui-calculator').set({ownerId:'ui-finder',type:'found',title:'Black Casio calculator',description:'Scientific calculator with a red sticker',category:'Electronics',location:'Library',specificLocation:'Second floor',custodyLocation:'Library Front Desk',status:'open',date:Date.now(),createdAt:Date.now()});
  await db.doc('items/ui-calculator/private/details').set({answers:['Synthetic ownership answer']});
  browser=await chromium.launch({...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{}),headless:true,args:['--no-sandbox']});
  page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
+ let avatarRequests=0;await page.context().route(avatarUrl,async route=>{avatarRequests++;await route.fulfill({status:200,contentType:'image/png',body:fs.readFileSync(require('node:path').resolve(__dirname,'../../assets/branding/findit-logo.png'))});});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/RenderFlex|overflowed by|EXCEPTION CAUGHT|Unhandled Exception/.test(m.text()))errors.push(m.text());});
  await page.goto((process.env.TEST_APP_URL||'http://127.0.0.1:8081'),{waitUntil:'networkidle'});
  await page.locator('flt-semantics-placeholder').evaluate(el=>el.click());
@@ -34,6 +36,13 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  await page.getByText('Spartans look out for Spartans.',{exact:true}).waitFor();
  await page.screenshot({path:require('node:path').join(output,'findit-spartan-home.png'),fullPage:true});
  require('node:fs').writeFileSync(require('node:path').join(output,'findit-home-aria.txt'),await page.locator('body').ariaSnapshot());
+ await page.getByRole('tab',{name:'Profile',exact:true}).click();
+ await page.getByRole('img',{name:/Profile picture/}).waitFor();
+ const photoDeadline=Date.now()+10000;while(!avatarRequests&&Date.now()<photoDeadline)await page.waitForTimeout(100);
+ assert.ok(avatarRequests>0,'Saved Google photo URL was requested');
+ await page.waitForTimeout(500);
+ await page.screenshot({path:require('node:path').join(output,'findit-profile-photo.png'),fullPage:true});
+ await page.getByRole('tab',{name:'Explore',exact:true}).click();
  await page.setViewportSize({width:320,height:640});
  await page.waitForTimeout(250);
  await page.screenshot({path:require('node:path').join(output,'findit-home-narrow.png'),fullPage:true});

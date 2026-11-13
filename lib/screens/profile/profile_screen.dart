@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_model.dart';
+import '../../widgets/user_avatar.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/claim_service.dart';
 import '../../services/item_service.dart';
@@ -157,18 +158,7 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 32,
-              backgroundColor: colorScheme.primaryContainer,
-              child: Text(
-                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
-              ),
-            ),
+            UserAvatar(name: user.name, photoUrl: user.photoUrl),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
