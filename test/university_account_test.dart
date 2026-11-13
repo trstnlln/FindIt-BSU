@@ -213,7 +213,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        final action = find.text('Continue with university Google account');
+        final action = find.text('Continue with Google');
         await tester.ensureVisible(action);
         await tester.tap(action);
         await tester.pump();

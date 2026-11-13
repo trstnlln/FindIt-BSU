@@ -90,3 +90,5 @@ import the account's name without typing it. This requires Google Workspace
 university accounts and the Firebase Google provider plus platform OAuth setup.
 See [setup and testing instructions](docs/university-google-sign-in.md).
 Email/password registration still requires a manually entered name.
+
+For the current Spark-compatible release, approved staff accounts and phone testing, see [Spark and staff setup](docs/spark-and-staff-setup.md).

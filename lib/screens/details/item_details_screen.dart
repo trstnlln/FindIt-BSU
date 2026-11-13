@@ -343,11 +343,11 @@ class ItemDetailsScreen extends StatelessWidget {
   }
 
   void _openClaimForm(BuildContext context, ItemModel item, UserModel user) {
-    if (!user.email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+    if (!context.read<AuthProvider>().hasCampusAccess) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.',
+            'Sign in with a university account or an approved staff account to claim an item.',
           ),
           backgroundColor: Theme.of(context).colorScheme.error,
           behavior: SnackBarBehavior.floating,
@@ -425,7 +425,7 @@ class ItemDetailsScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _confirmDeleteItem(
+  Future<void> _confirmArchiveItem(
     BuildContext context,
     ItemModel item,
     ItemService itemService,
@@ -433,10 +433,10 @@ class ItemDetailsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Report?'),
+        title: const Text('Archive this report?'),
         content: Text(
-          'Are you sure you want to delete "${item.title}"?\n\n'
-          'This will permanently delete this report and cannot be undone.',
+          'Archive "${item.title}"?\n\n'
+          'It will leave Explore. Your report, claims and private messages stay available in My Activity. You can restore it later.',
         ),
         actions: [
           TextButton(
@@ -448,7 +448,7 @@ class ItemDetailsScreen extends StatelessWidget {
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: const Text('Archive'),
           ),
         ],
       ),
@@ -464,13 +464,14 @@ class ItemDetailsScreen extends StatelessWidget {
     );
 
     try {
-      await itemService.deleteItem(item.id);
+      await itemService.archiveItem(item.id);
       if (context.mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.of(context).pop(); // dismiss loading dialog
         Navigator.of(context).pop(); // pop details screen back to feed
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
-            content: Text('Report for "${item.title}" deleted.'),
+            content: Text('Report for "${item.title}" archived.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -478,9 +479,13 @@ class ItemDetailsScreen extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context).pop(); // dismiss loading dialog
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete report: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not archive this report. Check your connection and try again.',
+            ),
+          ),
+        );
       }
     }
   }
@@ -600,8 +605,13 @@ class ItemDetailsScreen extends StatelessWidget {
                           ),
                         );
                       }
+                    case 'restore':
+                      await itemService.archiveItem(
+                        currentItem.id,
+                        archived: false,
+                      );
                     case 'delete':
-                      await _confirmDeleteItem(
+                      await _confirmArchiveItem(
                         context,
                         currentItem,
                         itemService,
@@ -609,7 +619,9 @@ class ItemDetailsScreen extends StatelessWidget {
                   }
                 },
                 itemBuilder: (_) => [
-                  if (isOwner && currentItem.status != 'returned')
+                  if (isOwner &&
+                      !currentItem.archived &&
+                      currentItem.status != 'returned')
                     const PopupMenuItem(
                       value: 'edit',
                       child: Text('Edit report'),
@@ -626,10 +638,15 @@ class ItemDetailsScreen extends StatelessWidget {
                     value: 'flag',
                     child: Text('Report a concern'),
                   ),
-                  if (isOwner)
+                  if (isOwner && currentItem.archived && !currentItem.moderated)
+                    const PopupMenuItem(
+                      value: 'restore',
+                      child: Text('Restore report'),
+                    ),
+                  if (isOwner && !currentItem.archived)
                     const PopupMenuItem(
                       value: 'delete',
-                      child: Text('Delete report'),
+                      child: Text('Archive report'),
                     ),
                 ],
               ),
@@ -640,6 +657,17 @@ class ItemDetailsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (currentItem.archived) ...[
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'Archived report • Hidden from Explore. Existing claims and messages remain available.',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // ── Hero Header Card ───────────────────────────────────────
                 Card(
                   elevation: 0,
@@ -1507,7 +1535,7 @@ class ItemDetailsScreen extends StatelessWidget {
         }
 
         // Item is already claimed or returned by someone else
-        if (item.status.toLowerCase() != 'open') {
+        if (item.archived || item.status.toLowerCase() != 'open') {
           return Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -2037,7 +2065,7 @@ class _ClaimFormBottomSheetState extends State<_ClaimFormBottomSheet> {
       '@g.batstate-u.edu.ph',
     )) {
       setState(
-        () => _errorMessage = 'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.',
+        () => _errorMessage = 'Sign in with a university account or an approved staff account to claim an item.',
       );
       return;
     }

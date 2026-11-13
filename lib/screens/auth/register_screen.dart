@@ -133,6 +133,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   isLoading: isLoading,
                   onPressed: isLoading ? null : _continueWithUniversityAccount,
                 ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text(
+                    'Staff using another email: ask a FindIt-BSU administrator to approve your account, then sign in with Google or use Forgot password.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
                   _buildErrorBanner(_errorMessage!, colorScheme),

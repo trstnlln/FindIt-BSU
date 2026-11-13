@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../providers/auth_provider.dart';
+import 'account_access.dart';
 
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 
@@ -35,10 +35,10 @@ class ClaimService {
     if (user == null ||
         !user.emailVerified ||
         user.uid != claimantId ||
-        !AuthProvider.isBatStateUEmail(user.email ?? '') ||
+        !await AccountAccess.isMember(user) ||
         claimantEmail != user.email) {
       throw Exception(
-        'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can submit claims.',
+        'Use a verified university account or an approved staff account to submit claims.',
       );
     }
     final now = DateTime.now();
@@ -190,6 +190,7 @@ class ClaimService {
       if (itemData == null ||
           itemData['ownerId'] != uid ||
           itemData['status'] != 'open' ||
+          itemData['archived'] == true ||
           claimData == null ||
           claimData['ownerId'] != uid ||
           claimData['itemId'] != itemId ||

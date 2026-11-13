@@ -18,6 +18,8 @@ class ItemModel {
   final DateTime date; // Date the item was lost or found
   final String? photoUrl; // Optional photo URL (Firebase Storage)
   final String status; // 'open', 'claimed', or 'returned'
+  final bool archived;
+  final bool moderated;
   final String ownerId; // UID of the user who created this report
   final DateTime createdAt; // Timestamp when report was submitted
 
@@ -34,6 +36,8 @@ class ItemModel {
     required this.date,
     this.photoUrl,
     required this.status,
+    this.archived = false,
+    this.moderated = false,
     required this.ownerId,
     required this.createdAt,
   });
@@ -55,6 +59,8 @@ class ItemModel {
       date: _parseDateTime(map['date']),
       photoUrl: map['photoUrl'] as String?,
       status: map['status'] as String? ?? 'open',
+      archived: map['archived'] == true,
+      moderated: map['moderated'] == true,
       ownerId: map['ownerId'] as String? ?? '',
       createdAt: _parseDateTime(map['createdAt']),
     );
@@ -79,6 +85,8 @@ class ItemModel {
       'date': date.millisecondsSinceEpoch,
       'photoUrl': photoUrl,
       'status': status,
+      'archived': archived,
+      'moderated': moderated,
       'ownerId': ownerId,
       'createdAt': createdAt.millisecondsSinceEpoch,
     };
@@ -97,6 +105,8 @@ class ItemModel {
     DateTime? date,
     String? photoUrl,
     String? status,
+    bool? archived,
+    bool? moderated,
   }) {
     return ItemModel(
       id: id,
@@ -111,6 +121,8 @@ class ItemModel {
       date: date ?? this.date,
       photoUrl: photoUrl ?? this.photoUrl,
       status: status ?? this.status,
+      archived: archived ?? this.archived,
+      moderated: moderated ?? this.moderated,
       ownerId: ownerId,
       createdAt: createdAt,
     );

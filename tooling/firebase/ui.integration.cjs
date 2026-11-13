@@ -11,11 +11,13 @@ let browser;let page;let owner;
 async function typeInto(p,locator,text){await locator.click();await p.waitForTimeout(150);await p.keyboard.type(text,{delay:15});await p.waitForTimeout(150);assert.equal(await locator.inputValue(),text);}
 (async()=>{
  const auth=getAuth(app);const password='Local-test-only-123!';
- for(const [uid,email,name]of [['ui-student','qa.student@g.batstate-u.edu.ph','QA Student With A Long University Account Name'],['ui-finder','qa.finder@g.batstate-u.edu.ph','QA Finder']]){
+ for(const [uid,email,name]of [['ui-student','qa.student@g.batstate-u.edu.ph','QA Student With A Long University Account Name'],['ui-finder','qa.finder@g.batstate-u.edu.ph','QA Finder'],['ui-staff','approved.staff@example.org','Approved Staff'],['ui-outsider','unapproved@example.org','Unapproved Person']]){
   await auth.createUser({uid,email,password,displayName:name,emailVerified:true});
-  await db.doc('users/'+uid).set({name,email,role:'student',createdAt:Date.now()});
+  if(uid==='ui-staff')await auth.setCustomUserClaims(uid,{staff:true});
+  await db.doc('users/'+uid).set({name,email,role:uid==='ui-staff'||uid==='ui-outsider'?'staff':'student',createdAt:Date.now()});
  }
  await db.doc('items/ui-calculator').set({ownerId:'ui-finder',type:'found',title:'Black Casio calculator',description:'Scientific calculator with a red sticker',category:'Electronics',location:'Library',specificLocation:'Second floor',custodyLocation:'Library Front Desk',status:'open',date:Date.now(),createdAt:Date.now()});
+ await db.doc('items/ui-calculator/private/details').set({answers:['Synthetic ownership answer']});
  browser=await chromium.launch({...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{}),headless:true,args:['--no-sandbox']});
  page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/RenderFlex|overflowed by|EXCEPTION CAUGHT|Unhandled Exception/.test(m.text()))errors.push(m.text());});
@@ -24,7 +26,7 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  await page.getByRole('button',{name:'Sign in with email instead',exact:true}).waitFor();
  await page.screenshot({path:require('node:path').join(output,'findit-aesthetic-sign-in.png'),fullPage:true});
  await page.getByRole('button',{name:'Sign in with email instead',exact:true}).click();
- await typeInto(page,page.getByRole('textbox',{name:'University email',exact:true}),'qa.student@g.batstate-u.edu.ph');
+ await typeInto(page,page.getByRole('textbox',{name:'Email address',exact:true}),'qa.student@g.batstate-u.edu.ph');
  await typeInto(page,page.getByLabel('Password',{exact:true}),password);
  await page.getByRole('button',{name:'Log In',exact:true}).click();
  await page.waitForTimeout(1500);
@@ -45,7 +47,8 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  await typeInto(page,page.getByRole('textbox',{name:'Search campus reports',exact:true}),'no-such-item');
  await page.keyboard.press('Tab');
  await page.getByText('No matches just yet',{exact:true}).waitFor();
- await page.getByRole('button',{name:'Clear search',exact:true}).click();
+ await page.getByRole('button',{name:'Clear all',exact:true}).click();
+ await page.getByText('1 found report',{exact:true}).waitFor();
  await page.getByText('Black Casio calculator',{exact:false}).click();
  await page.getByRole('button',{name:'Claim This Item',exact:true}).click();
  await page.getByLabel('Message to reporter',{exact:true}).fill('I left my calculator in the library.');
@@ -65,13 +68,29 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  await owner.goto((process.env.TEST_APP_URL||'http://127.0.0.1:8081'),{waitUntil:'networkidle'});
  await owner.locator('flt-semantics-placeholder').evaluate(el=>el.click());
  await owner.getByRole('button',{name:'Sign in with email instead',exact:true}).click();
- await typeInto(owner,owner.getByRole('textbox',{name:'University email',exact:true}),'qa.finder@g.batstate-u.edu.ph');
+ await typeInto(owner,owner.getByRole('textbox',{name:'Email address',exact:true}),'qa.finder@g.batstate-u.edu.ph');
  await typeInto(owner,owner.getByLabel('Password',{exact:true}),password);
  await owner.getByRole('button',{name:'Log In',exact:true}).click();
  await owner.getByRole('tab',{name:/Found Items/}).waitFor();
- await owner.getByRole('tab',{name:/Found Items/}).click();
- await owner.getByText('Black Casio calculator',{exact:false}).click();
- await owner.getByRole('button',{name:/Review Claims/}).click();
+ console.log('Checking live Spark alerts and private replies.');
+ await owner.getByRole('button',{name:/Your alerts/}).click();
+ await owner.getByRole('button',{name:/A claim needs your review/}).waitFor();
+ await owner.getByRole('button',{name:/You have a private message/}).waitFor();
+ assert.equal(await owner.getByRole('button',{name:'Enable device alerts',exact:true}).count(),0);
+ await owner.screenshot({path:require('node:path').join(output,'findit-spark-alerts.png'),fullPage:true});
+ await owner.getByRole('button',{name:/You have a private message/}).click();
+ await owner.getByText('Can we meet at the library office?',{exact:true}).waitFor();
+ await typeInto(owner,owner.getByRole('textbox',{name:'Write a message',exact:true}),'Please bring your university ID to pickup.');
+ await owner.getByRole('button',{name:'Send message',exact:true}).click();
+ await page.getByText('Please bring your university ID to pickup.',{exact:true}).waitFor();
+ await owner.getByRole('button',{name:/^Back(?: Back)?$/}).click();
+ await owner.getByRole('heading',{name:'Your alerts',exact:true}).waitFor();
+ await owner.getByRole('button',{name:/^Back(?: Back)?$/}).click();
+ await owner.getByRole('tab',{name:'My Activity',exact:true}).waitFor();
+ await owner.getByRole('tab',{name:'My Activity',exact:true}).click();
+ await owner.getByRole('button',{name:'Review claims (1)',exact:true}).waitFor();
+ await owner.screenshot({path:require('node:path').join(output,'findit-actionable-activity.png'),fullPage:true});
+ await owner.getByRole('button',{name:'Review claims (1)',exact:true}).click();
  await owner.getByRole('button',{name:'Start review',exact:true}).click();
  await owner.getByRole('button',{name:'Approve',exact:true}).click();
  await owner.getByRole('button',{name:'Approve Claim',exact:true}).click();
@@ -82,9 +101,41 @@ async function typeInto(p,locator,text){await locator.click();await p.waitForTim
  const returnedDeadline=Date.now()+15000;
  while(Date.now()<returnedDeadline && (await db.doc('items/ui-calculator').get()).data().status!=='returned') await new Promise(resolve=>setTimeout(resolve,100));
  const claims=await db.collection('claims').where('claimantId','==','ui-student').get();assert.equal(claims.size,1);assert.equal(claims.docs[0].data().status,'returned');assert.equal((await db.doc('items/ui-calculator').get()).data().status,'returned');
- const conversation=await db.collection('conversations').doc(claims.docs[0].id).collection('messages').get();assert.equal(conversation.size,1);
+ const conversation=await db.collection('conversations').doc(claims.docs[0].id).collection('messages').get();assert.equal(conversation.size,2);
+ assert.ok((await db.doc('conversations/'+claims.docs[0].id).get()).data().lastMessageId);
+ await owner.getByRole('button',{name:/^Back(?: Back)?$/}).click();
+ console.log('Checking archive and restore history.');
+ await owner.getByRole('button',{name:'View report',exact:true}).click();
+ await owner.getByRole('button',{name:/^Report options(?: Report options)?$/}).click();
+ await owner.getByRole('menuitem',{name:'Archive report',exact:true}).click();
+ await owner.getByRole('button',{name:'Archive',exact:true}).click();
+ await owner.getByRole('button',{name:'View history',exact:true}).waitFor();
+ assert.equal((await db.doc('items/ui-calculator').get()).data().archived,true);
+ assert.equal((await db.doc('claims/'+claims.docs[0].id).get()).exists,true);
+ assert.equal((await db.doc('items/ui-calculator/private/details').get()).exists,true);
+ assert.equal((await db.collection('conversations').doc(claims.docs[0].id).collection('messages').get()).size,2);
+ await owner.getByRole('button',{name:'View history',exact:true}).click();
+ await owner.getByRole('button',{name:/^Report options(?: Report options)?$/}).click();
+ await owner.getByRole('menuitem',{name:'Restore report',exact:true}).click();
+ await owner.getByText('Archived report • Hidden from Explore. Existing claims and messages remain available.',{exact:true}).waitFor({state:'hidden'});
+ const restoreDeadline=Date.now()+10000;
+ while(Date.now()<restoreDeadline&&(await db.doc('items/ui-calculator').get()).data().archived!==false)await new Promise(resolve=>setTimeout(resolve,100));
+ assert.equal((await db.doc('items/ui-calculator').get()).data().archived,false);
+ console.log('Checking approved and unapproved external staff identities.');
+ for(const [email,approved] of [['approved.staff@example.org',true],['unapproved@example.org',false]]){
+  const staff=await browser.newPage({viewport:{width:390,height:844}});staff.on('pageerror',e=>errors.push(e.message));
+  await staff.goto((process.env.TEST_APP_URL||'http://127.0.0.1:8081'),{waitUntil:'networkidle'});
+  await staff.locator('flt-semantics-placeholder').evaluate(el=>el.click());
+  await staff.getByRole('button',{name:'Sign in with email instead',exact:true}).click();
+  await typeInto(staff,staff.getByRole('textbox',{name:'Email address',exact:true}),email);
+  await typeInto(staff,staff.getByLabel('Password',{exact:true}),password);
+  await staff.getByRole('button',{name:'Log In',exact:true}).click();
+  if(approved){await staff.getByText('Spartans look out for Spartans.',{exact:true}).waitFor();await staff.getByRole('button',{name:'Report item',exact:true}).click();await staff.getByText('Let’s bring it back.',{exact:true}).waitFor();}
+  else {await staff.locator('flt-semantics-host').getByText('Use a university account or ask an administrator to approve your staff email.',{exact:true}).waitFor();assert.equal(await staff.getByText('Spartans look out for Spartans.',{exact:true}).count(),0);}
+  await staff.close();
+ }
  await page.screenshot({path:require('node:path').join(output,'findit-private-message.png'),fullPage:true});
  assert.equal(errors.length,0,JSON.stringify(errors));
- console.log('PASS: verified sign-in, live feed, ownership claim, private messaging, reporter review, approval, pickup readiness and return through the actual Flutter UI and emulators.');
+ console.log('PASS without Cloud Functions: live claims/messages, read receipts, actionable activity, search feedback, safe archiving/restoring, staff approval enforcement and full handover workflow.');
  await browser.close();await db.terminate();
 })().catch(async error=>{console.error(error);if(owner){await owner.screenshot({path:require('node:path').join(output,'findit-owner-failure.png'),fullPage:true});console.error('Owner page:',(await owner.locator('body').ariaSnapshot()).slice(0,3000));}if(page){await page.screenshot({path:require('node:path').join(output,'findit-ui-failure.png'),fullPage:true});console.error((await page.locator('flt-semantics-host').innerText()).slice(0,2000));}if(browser)await browser.close();process.exit(1)});

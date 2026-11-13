@@ -6,7 +6,7 @@ import '../../widgets/item_card.dart';
 import '../../widgets/empty_state_view.dart';
 
 bool savedSearchMatches(Map<String, dynamic> search, ItemModel item) {
-  if (item.status != 'open') return false;
+  if (item.archived || item.status != 'open') return false;
   if (search['category'] != null && search['category'] != item.category) {
     return false;
   }
@@ -54,8 +54,7 @@ class _SavedSearchResultsScreenState extends State<SavedSearchResultsScreen> {
           return const EmptyStateView(
             icon: Icons.search_off,
             title: 'No open matches yet',
-            subtitle:
-                'Your search is saved. New matches will appear in your alerts.',
+            subtitle: 'Your search is saved. Reopen this saved search to check for new matches.',
           );
         }
         return ListView.builder(

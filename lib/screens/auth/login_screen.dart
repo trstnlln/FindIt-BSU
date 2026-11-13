@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          error ?? 'If an account exists, a reset link has been sent. Check your university inbox.',
+          error ?? 'If an account exists, a reset link has been sent. Check your email inbox.',
         ),
       ),
     );
@@ -223,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Use your university account to get started.',
+                                        'Use your university account or an approved staff account.',
                                         style: theme.textTheme.bodyMedium
                                             ?.copyWith(
                                               color:
@@ -396,8 +396,8 @@ class _LoginScreenState extends State<LoginScreen>
       autocorrect: false,
       autofillHints: const [AutofillHints.email],
       decoration: InputDecoration(
-        labelText: 'University email',
-        hintText: 'you@g.batstate-u.edu.ph',
+        labelText: 'Email address',
+        hintText: 'Your email address',
         prefixIcon: const Icon(Icons.email_outlined),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -409,9 +409,6 @@ class _LoginScreenState extends State<LoginScreen>
         final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
         if (!emailRegex.hasMatch(email)) {
           return 'Please enter a valid email address.';
-        }
-        if (!email.endsWith('@g.batstate-u.edu.ph')) {
-          return 'Must be an official @g.batstate-u.edu.ph email address.';
         }
         return null;
       },

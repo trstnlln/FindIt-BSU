@@ -109,7 +109,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
                               builder: (ctx) => AlertDialog(
                                 title: const Text('Remove this report?'),
                                 content: const Text(
-                                  'Remove the public item after reviewing this concern. This action cannot be undone.',
+                                  'Archive the report after reviewing this concern. It leaves Explore while claims and messages remain linked for review.',
                                 ),
                                 actions: [
                                   TextButton(
@@ -125,10 +125,10 @@ class _ModerationScreenState extends State<ModerationScreen> {
                             );
                             if (confirmed != true) return;
                             try {
-                              await _service.db
-                                  .collection('items')
-                                  .doc(data['itemId'] as String)
-                                  .delete();
+                              await ItemService().archiveItem(
+                                data['itemId'] as String,
+                                moderation: true,
+                              );
                               await doc.reference.update({
                                 'status': 'resolved',
                               });
@@ -144,7 +144,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
                               }
                             }
                           },
-                          child: const Text('Remove report'),
+                          child: const Text('Archive report'),
                         ),
                       ],
                     ),

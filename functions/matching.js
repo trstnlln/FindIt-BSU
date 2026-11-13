@@ -7,7 +7,7 @@ function timestampMillis(value) {
 }
 const keywords = text => new Set(String(text || '').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(word => word.length >= 3 && !['the','and','with','for','this','that','from','have','lost','found','item','please','help','near','inside','outside','around'].includes(word)));
 function matchScore(a,b) {
-  if (a.type === b.type || a.status !== 'open' || b.status !== 'open' || a.ownerId === b.ownerId) return 0;
+  if (a.archived || b.archived || a.type === b.type || a.status !== 'open' || b.status !== 'open' || a.ownerId === b.ownerId) return 0;
   let score = 0;
   if (a.category && a.category.toLowerCase() === b.category?.toLowerCase()) score += 40;
   if (a.location && a.location.toLowerCase() === b.location?.toLowerCase()) score += 25;
@@ -18,7 +18,7 @@ function matchScore(a,b) {
   return score;
 }
 function matchesSearch(search,item) {
-  if (item.status !== 'open') return false;
+  if (item.archived || item.status !== 'open') return false;
   if (search.category && search.category !== item.category) return false;
   if (search.location && search.location !== item.location) return false;
   const query = String(search.query || '').trim().toLowerCase();

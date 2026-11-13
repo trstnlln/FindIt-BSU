@@ -16,7 +16,7 @@ class MatchingService {
   /// For a 'lost' item, searches 'found' items (and vice versa).
   /// Returns items ranked by similarity score.
   Future<List<ItemModel>> findMatches(ItemModel item, {int limit = 5}) async {
-    if (item.status != 'open') return [];
+    if (item.archived || item.status != 'open') return [];
     final oppositeType = item.type.toLowerCase() == 'lost' ? 'found' : 'lost';
 
     try {
@@ -33,6 +33,7 @@ class MatchingService {
           .where(
             (c) =>
                 c.id != item.id &&
+                !c.archived &&
                 c.status == 'open' &&
                 c.ownerId != item.ownerId,
           )
@@ -58,6 +59,7 @@ class MatchingService {
 
   /// Calculates a numerical similarity score (0 to 100) between two items.
   static int calculateMatchScore(ItemModel a, ItemModel b) {
+    if (a.archived || b.archived) return 0;
     int score = 0;
 
     // 1. Category Match (40 pts)

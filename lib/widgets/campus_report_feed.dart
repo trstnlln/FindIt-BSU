@@ -63,7 +63,9 @@ class CampusReportFeed extends StatelessWidget {
           );
         }
 
-        final allItems = snapshot.data ?? [];
+        final allItems = (snapshot.data ?? [])
+            .where((item) => !item.archived)
+            .toList();
 
         // Base empty state (no items reported at all in this tab)
         if (allItems.isEmpty) {
@@ -156,16 +158,39 @@ class CampusReportFeed extends StatelessWidget {
         }
 
         // Populated List using extracted modular ItemCard
-        return ListView.separated(
-          key: PageStorageKey('feed-$type'),
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 104),
-          itemCount: filteredItems.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final item = filteredItems[index];
-            return ItemCard(item: item);
-          },
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _isFiltering
+                        ? '${filteredItems.length} of ${allItems.length} reports'
+                        : '${filteredItems.length} ${isLost ? 'lost' : 'found'} ${filteredItems.length == 1 ? 'report' : 'reports'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                key: PageStorageKey('feed-$type'),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+                itemCount: filteredItems.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final item = filteredItems[index];
+                  return ItemCard(item: item);
+                },
+              ),
+            ),
+          ],
         );
       },
     );

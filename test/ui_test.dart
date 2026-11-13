@@ -18,6 +18,8 @@ import 'package:finditbsu_app/widgets/item_card.dart';
 class TestAuthService extends AuthService {
   final changes = StreamController<User?>.broadcast();
   final result = Completer<UserModel>();
+  @override
+  User? get currentFirebaseUser => null;
   int loginCount = 0;
   String? submittedEmail;
   @override
@@ -107,6 +109,34 @@ void main() {
     expect(provider.currentUser, isNull);
     provider.dispose();
     await service.changes.close();
+  });
+
+  test('password login commits the validated profile; a chosen staff role cannot bypass approval', () async {
+    for (final allowed in [true, false]) {
+      final service = TestAuthService();
+      final auth = AuthProvider(authService: service);
+      final request = auth.login(
+        email: allowed ? 'student@g.batstate-u.edu.ph' : 'outsider@example.org',
+        password: 'password',
+      );
+      service.result.complete(
+        UserModel(
+          id: 'u',
+          name: 'Person',
+          email: allowed
+              ? 'student@g.batstate-u.edu.ph'
+              : 'outsider@example.org',
+          role: 'staff',
+          createdAt: DateTime(2026),
+        ),
+      );
+      final error = await request;
+      expect(error == null, allowed);
+      expect(auth.hasCampusAccess, allowed);
+      expect(auth.currentUser != null, allowed);
+      auth.dispose();
+      await service.changes.close();
+    }
   });
 
   for (final width in [320.0, 390.0, 768.0]) {
@@ -210,7 +240,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(TextFormField), findsNWidgets(2));
-    expect(find.text('Continue with university Google account'), findsNothing);
+    expect(find.text('Continue with Google'), findsNothing);
     expect(find.text('Sign in with email instead'), findsNothing);
     expect(find.text('Register'), findsOneWidget);
     expect(tester.takeException(), isNull);

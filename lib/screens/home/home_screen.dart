@@ -346,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 final user = context.read<AuthProvider>().currentUser;
                 if (user == null ||
-                    !AuthProvider.isBatStateUEmail(user.email)) {
+                    !context.read<AuthProvider>().hasCampusAccess) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
@@ -700,6 +700,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          if (_hasActiveFilters)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      [
+                        if (_searchQuery.isNotEmpty) '“$_searchQuery”',
+                        ?_selectedCategory,
+                        ?_selectedLocation,
+                        ?statusLabel,
+                        ?dateLabel,
+                      ].join(' • '),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _resetFilters,
+                    child: const Text('Clear all'),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

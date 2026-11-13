@@ -21,10 +21,14 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _currentUser;
   bool _isInitialLoading = true;
   bool _emailVerified = false;
+  bool _approvedStaff = false;
+  bool get hasCampusAccess =>
+      _currentUser != null &&
+      (isBatStateUEmail(_currentUser!.email) || _approvedStaff);
   bool get isEmailVerified => _emailVerified;
   bool _isLoading = false;
   bool _disposed = false;
-  bool _universitySignInInProgress = false;
+  bool _interactiveSignInInProgress = false;
   int _authRevision = 0;
   int _sessionRevision = 0;
   StreamSubscription<User?>? _authSubscription;
@@ -46,7 +50,7 @@ class AuthProvider extends ChangeNotifier {
     // Subscribe to Firebase auth changes immediately on creation.
     _authSubscription = _authService.authStateChanges.listen(
       (firebaseUser) async {
-        if (_universitySignInInProgress) return;
+        if (_interactiveSignInInProgress) return;
         await _onAuthStateChanged(firebaseUser);
         if (_isInitialLoading) {
           _isInitialLoading = false;
@@ -68,12 +72,18 @@ class AuthProvider extends ChangeNotifier {
     final revision = ++_authRevision;
     _emailVerified = firebaseUser?.emailVerified ?? false;
     if (firebaseUser == null) {
+      _approvedStaff = false;
       ++_sessionRevision;
       _currentUser = null;
     } else {
       final email = firebaseUser.email ?? '';
-      // Strict domain restriction: if not @g.batstate-u.edu.ph, force logout
-      if (!isBatStateUEmail(email)) {
+      // External staff identities require a trusted administrator-issued claim.
+      final approvedStaff = await _authService.isApprovedStaff(
+        firebaseUser.uid,
+      );
+      if (_disposed || revision != _authRevision) return;
+      _approvedStaff = approvedStaff;
+      if (!isBatStateUEmail(email) && !approvedStaff) {
         await _authService.logout();
         _currentUser = null;
         notifyListeners();
@@ -135,6 +145,7 @@ class AuthProvider extends ChangeNotifier {
       if (_disposed || session != _sessionRevision) {
         return 'Session changed. Please sign in again.';
       }
+      _emailVerified = _authService.currentFirebaseUser?.emailVerified ?? false;
       _currentUser = user;
       notifyListeners();
       return null; // null = success
@@ -148,16 +159,18 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Logs in an existing user. Returns an error message string on failure,
-  /// or null on success. Strictly restricted to @g.batstate-u.edu.ph.
+  /// or null on success. Staff approval is checked after authentication.
   Future<String?> login({
     required String email,
     required String password,
   }) async {
-    if (!isBatStateUEmail(email)) {
-      return 'Access Denied: Only users with a valid @g.batstate-u.edu.ph email address can log in.';
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim())) {
+      return 'Enter a valid email address.';
     }
     if (_isLoading) return 'Please wait for the current request to finish.';
     final session = _sessionRevision;
+    ++_authRevision;
+    _interactiveSignInInProgress = true;
     _setLoading(true);
     try {
       final user = await _authService.loginWithEmail(
@@ -167,12 +180,18 @@ class AuthProvider extends ChangeNotifier {
       if (_disposed || session != _sessionRevision) {
         return 'Session changed. Please sign in again.';
       }
+      final approvedStaff = await _authService.isApprovedStaff(user.id);
+      if (_disposed || session != _sessionRevision) {
+        return 'Session changed. Please sign in again.';
+      }
+      _approvedStaff = approvedStaff;
+      if (!isBatStateUEmail(user.email) && !approvedStaff) {
+        await logout();
+        return 'Use a university account or ask an administrator to approve your staff email.';
+      }
       _emailVerified = _authService.currentFirebaseUser?.emailVerified ?? false;
       _currentUser = user;
-      if (!isBatStateUEmail(user.email)) {
-        await logout();
-        return 'Access Denied: Only users with a valid @g.batstate-u.edu.ph email address can log in.';
-      }
+      _isInitialLoading = false;
       notifyListeners();
       return null; // null = success
     } on FirebaseAuthException catch (e) {
@@ -180,6 +199,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       return 'Login failed: ${e.toString().replaceAll('Exception: ', '')}';
     } finally {
+      _interactiveSignInInProgress = false;
       _setLoading(false);
     }
   }
@@ -190,7 +210,7 @@ class AuthProvider extends ChangeNotifier {
     if (_isLoading) return 'Please wait for the current request to finish.';
     final session = _sessionRevision;
     ++_authRevision; // invalidate older profile reads
-    _universitySignInInProgress = true;
+    _interactiveSignInInProgress = true;
     _setLoading(true);
     try {
       final user = await _authService.signInWithUniversityGoogle();
@@ -198,10 +218,16 @@ class AuthProvider extends ChangeNotifier {
         await _authService.logout();
         return 'Session changed. Please sign in again.';
       }
-      if (!isBatStateUEmail(user.email) || user.name.trim().isEmpty) {
+      if ((!isBatStateUEmail(user.email) &&
+              !await _authService.isApprovedStaff(user.id)) ||
+          user.name.trim().isEmpty) {
         await _authService.logout();
         _currentUser = null;
-        return 'Choose your university Google account to continue.';
+        return 'Use a university Google account or an approved staff account.';
+      }
+      _approvedStaff = await _authService.isApprovedStaff(user.id);
+      if (_disposed || session != _sessionRevision) {
+        return 'Session changed. Please sign in again.';
       }
       _currentUser = user;
       _emailVerified = true;
@@ -221,7 +247,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {
       return 'We couldn’t finish university sign-in. Check your connection and try again.';
     } finally {
-      _universitySignInInProgress = false;
+      _interactiveSignInInProgress = false;
       _setLoading(false);
     }
   }
@@ -250,7 +276,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> resetPassword(String email) async {
-    if (!isBatStateUEmail(email)) return 'Enter your university email first.';
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim())) {
+      return 'Enter your email address first.';
+    }
     try {
       await _authService.resetPassword(email);
       return null;
@@ -266,6 +294,7 @@ class AuthProvider extends ChangeNotifier {
     await _authService.logout();
     _currentUser = null;
     _emailVerified = false;
+    _approvedStaff = false;
     notifyListeners();
   }
 

@@ -60,13 +60,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 const BrandLogo(size: 80),
                 const SizedBox(height: 24),
                 Text(
-                  'Verify your university email',
+                  'Verify your email',
                   style: Theme.of(context).textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Open the verification link sent to ${context.watch<AuthProvider>().currentUser?.email ?? 'your university inbox'}. Then return here to continue.',
+                  'Open the verification link sent to ${context.watch<AuthProvider>().currentUser?.email ?? 'your inbox'}. Then return here to continue.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),

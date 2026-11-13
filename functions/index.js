@@ -79,7 +79,7 @@ exports.reportReminders = onSchedule({schedule:'every day 09:00',timeZone:'Asia/
   const now = Date.now();
   const week = Math.floor(now / (7*86400000));
   for await (const doc of pages(db.collection('items').where('status','==','open'))) {
-    const item = doc.data();
+    const item = doc.data(); if (item.archived) continue;
     const createdAt=timestampMillis(item.createdAt);
     if (!Number.isFinite(createdAt) || now - createdAt < 14*86400000) continue;
     await notify(item.ownerId,key(['reminder',doc.id,week]),{type:'reminder',title:'Is your report still open?',body:'Review your old report, update the details, or mark it returned if it has been recovered.',itemId:doc.id});

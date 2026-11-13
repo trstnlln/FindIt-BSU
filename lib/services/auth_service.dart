@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../models/user_model.dart';
 import '../models/university_account.dart';
+import 'account_access.dart';
 import 'device_alerts.dart';
 
 /// Handles all Firebase Auth and Firestore user operations.
@@ -77,6 +78,8 @@ class AuthService {
     return getUserData(credential.user!.uid);
   }
 
+  Future<bool> isApprovedStaff(String uid) => AccountAccess.approvedStaff(uid);
+
   /// Imports the profile only after Firebase accepts Google's sign-in token.
   /// The domain selector is a convenience; the returned identity is validated
   /// independently before any profile is written.
@@ -84,10 +87,7 @@ class AuthService {
     UserCredential credential;
     if (kIsWeb) {
       final provider = GoogleAuthProvider()
-        ..setCustomParameters({
-          'hd': UniversityAccount.domain,
-          'prompt': 'select_account',
-        });
+        ..setCustomParameters({'prompt': 'select_account'});
       credential = await _auth.signInWithPopup(provider);
     } else {
       if (defaultTargetPlatform != TargetPlatform.android &&
@@ -111,7 +111,6 @@ class AuthService {
         await (_googleInitialization ??= signIn.initialize(
           clientId: apple ? clientId : null,
           serverClientId: serverClientId.isEmpty ? null : serverClientId,
-          hostedDomain: UniversityAccount.domain,
         ));
       } catch (_) {
         _googleInitialization = null;
@@ -141,6 +140,7 @@ class AuthService {
       final googleProfile = googleProfiles.first;
       final identity = UniversityAccount.fromGoogle(
         email: firebaseUser.email,
+        approvedStaff: await isApprovedStaff(firebaseUser.uid),
         displayName: googleProfile.displayName,
         emailVerified: firebaseUser.emailVerified,
         photoUrl: googleProfile.photoURL,
@@ -194,7 +194,7 @@ class AuthService {
           ? fbUser!.displayName!
           : (fbUser?.email?.split('@').first ?? 'BSU User'),
       email: fbUser?.email ?? '',
-      role: 'student',
+      role: await isApprovedStaff(uid) ? 'staff' : 'student',
       createdAt: DateTime.now(),
     );
 

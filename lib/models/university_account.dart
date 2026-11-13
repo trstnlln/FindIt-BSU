@@ -7,8 +7,14 @@ class UniversityAccount {
   final String name;
   final String email;
   final String? photoUrl;
+  final bool approvedStaff;
 
-  const UniversityAccount._(this.name, this.email, this.photoUrl);
+  const UniversityAccount._(
+    this.name,
+    this.email,
+    this.photoUrl,
+    this.approvedStaff,
+  );
 
   static bool isCampusEmail(String email) =>
       RegExp(r'^[^@\s]+@g\.batstate-u\.edu\.ph$')
@@ -19,10 +25,11 @@ class UniversityAccount {
     required String? displayName,
     required bool emailVerified,
     String? photoUrl,
+    bool approvedStaff = false,
   }) {
-    if (email == null || !isCampusEmail(email)) {
+    if (email == null || (!isCampusEmail(email) && !approvedStaff)) {
       throw const UniversityAccountException(
-        'Choose your @g.batstate-u.edu.ph Google account to continue.',
+        'Use your university Google account, or ask an administrator to approve your staff email.',
       );
     }
     if (!emailVerified) {
@@ -41,7 +48,12 @@ class UniversityAccount {
         'Your Google account name is too long. Use email registration with a name under 200 characters.',
       );
     }
-    return UniversityAccount._(name, email.trim().toLowerCase(), photoUrl);
+    return UniversityAccount._(
+      name,
+      email.trim().toLowerCase(),
+      photoUrl,
+      approvedStaff,
+    );
   }
 
   UserModel toProfile({
@@ -55,7 +67,7 @@ class UniversityAccount {
     photoUrl: photoUrl ?? existing?.photoUrl,
     // Existing accounts keep their role and original creation date. New Google
     // registrations are students; a sign-in never changes an account's role.
-    role: existing?.role ?? 'student',
+    role: approvedStaff ? 'staff' : (existing?.role ?? 'student'),
     createdAt: existing?.createdAt ?? now,
   );
 }

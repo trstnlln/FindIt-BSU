@@ -24,10 +24,7 @@ class UniversitySignInButton extends StatelessWidget {
     if (!isSupported) return const SizedBox.shrink();
     const label = Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        'Continue with university Google account',
-        textAlign: TextAlign.center,
-      ),
+      child: Text('Continue with Google', textAlign: TextAlign.center),
     );
     final icon = isLoading
         ? const SizedBox(
@@ -45,7 +42,7 @@ class UniversitySignInButton extends StatelessWidget {
           OutlinedButton.icon(onPressed: onPressed, icon: icon, label: label),
         const SizedBox(height: 8),
         Text(
-          'Your university email and Google account name fill in automatically.',
+          'Your Google name and email fill in automatically.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,

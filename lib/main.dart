@@ -7,6 +7,7 @@ import 'theme/app_theme.dart';
 import 'services/backend_setup.dart';
 import 'providers/auth_provider.dart';
 import 'providers/item_provider.dart';
+import 'providers/activity_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'widgets/brand_logo.dart';
@@ -57,6 +58,17 @@ class _AppBootstrapState extends State<AppBootstrap> {
           providers: [
             ChangeNotifierProvider(create: (_) => AuthProvider()),
             ChangeNotifierProvider(create: (_) => ItemProvider()),
+            ChangeNotifierProxyProvider<AuthProvider, ActivityProvider>(
+              create: (_) => ActivityProvider(),
+              update: (_, auth, activity) => activity!
+                ..bind(
+                  auth.currentUser != null &&
+                          auth.isEmailVerified &&
+                          auth.hasCampusAccess
+                      ? auth.currentUser!.id
+                      : null,
+                ),
+            ),
           ],
           child: const FindItApp(),
         );

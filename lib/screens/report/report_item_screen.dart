@@ -312,9 +312,9 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       return;
     }
 
-    if (!user.email.trim().toLowerCase().endsWith('@g.batstate-u.edu.ph')) {
+    if (!context.read<AuthProvider>().hasCampusAccess) {
       setState(
-        () => _errorMessage = 'Domain Restricted: Only users with a valid @g.batstate-u.edu.ph email address can post item reports.',
+        () => _errorMessage = 'Sign in with a verified university account or an approved staff account to post reports.',
       );
       return;
     }

@@ -1,8 +1,7 @@
 # Automatic university account names
 
-The login and registration screens offer **Continue with university Google
-account**. After Google authentication, Firebase verifies the sign-in token. The
-app accepts only a verified `g.batstate-u.edu.ph` email, imports the Google
+The login and registration screens offer **Continue with Google**. After Google authentication, Firebase verifies the sign-in token. The
+app accepts a verified `g.batstate-u.edu.ph` email or an administrator-approved staff identity, imports the Google
 provider's display name and optional profile photo, and writes the profile under
 the Firebase UID. It never tries to derive a name from a student number or email
 address, and never asks for the user's Google password inside the app.
@@ -13,7 +12,7 @@ record. An official registrar name would require an authorized university
 directory integration. If Google provides no name, the app explains that the
 student can use email/password registration and enter it manually.
 
-New Google registrations receive the `student` role. Returning users keep their
+New campus Google registrations receive the `student` role. Approved staff receive the `staff` role. Returning users keep their
 existing role and account creation date; signing in cannot promote an account.
 Existing profile metadata is preserved with a transaction and merged write.
 Email/password registration remains available and continues to ask for a name.
@@ -32,7 +31,7 @@ These settings belong to the Firebase project and are not enabled by pushing cod
    accounts or configure the appropriate audience. University administrator
    approval may be required by the school's Google Workspace policy.
 
-The hosted-domain selector is only a convenience. The app independently checks
+Staff may use any email provider after administrator approval, as described in [Spark and staff setup](spark-and-staff-setup.md). Google selection is not limited to the student domain. The app independently checks
 the email domain and verification status returned by Firebase before saving the
 profile or allowing entry through the Google flow.
 

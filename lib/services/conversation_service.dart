@@ -37,14 +37,19 @@ class ConversationService {
         body.length > 2000) {
       throw StateError('Enter a message under 2,000 characters.');
     }
-    await _db
-        .collection('conversations')
-        .doc(claimId)
-        .collection('messages')
-        .add({
-          'senderId': user.uid,
-          'text': body,
-          'sentAt': FieldValue.serverTimestamp(),
-        });
+    final conversation = _db.collection('conversations').doc(claimId);
+    final message = conversation.collection('messages').doc();
+    final batch = _db.batch();
+    batch.set(message, {
+      'senderId': user.uid,
+      'text': body,
+      'sentAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(conversation, {
+      'lastMessageId': message.id,
+      'lastSenderId': user.uid,
+      'lastMessageAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 }

@@ -1,7 +1,7 @@
 const { test, before, after, beforeEach } = require('node:test');
 const fs = require('node:fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs, runTransaction, serverTimestamp } = require('firebase/firestore');
+const { doc, setDoc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs, runTransaction, serverTimestamp, deleteDoc } = require('firebase/firestore');
 let env;
 const email = uid => `${uid}@g.batstate-u.edu.ph`;
 const db = uid => env.authenticatedContext(uid, { email: email(uid), email_verified: true }).firestore();
@@ -114,7 +114,10 @@ test('private conversations exclude outsiders and prevent forged senders', async
     const ref = doc(student,'conversations/claim'); await tx.get(ref);
     tx.set(ref,{ownerId:'finder',claimantId:'student',itemId:'wallet',itemTitle:'Wallet',createdAt:serverTimestamp()});
   }));
-  await assertSucceeds(setDoc(doc(student,'conversations/claim/messages/one'),{senderId:'student',text:'Can we meet at the campus office?',sentAt:serverTimestamp()}));
+  const send=writeBatch(student);
+  send.set(doc(student,'conversations/claim/messages/one'),{senderId:'student',text:'Can we meet at the campus office?',sentAt:serverTimestamp()});
+  send.update(doc(student,'conversations/claim'),{lastMessageId:'one',lastSenderId:'student',lastMessageAt:serverTimestamp()});
+  await assertSucceeds(send.commit());
   await assertSucceeds(getDoc(doc(db('finder'),'conversations/claim/messages/one')));
   await assertFails(getDoc(doc(db('other'),'conversations/claim/messages/one')));
   await assertFails(setDoc(doc(student,'conversations/claim/messages/forged'),{senderId:'finder',text:'Forged message',sentAt:serverTimestamp()}));
@@ -150,4 +153,48 @@ test('malformed claims cannot inject invalid ownership-answer types', async () =
 test('unbounded report dates cannot poison the campus feed', async () => {
   await assertFails(setDoc(doc(db('finder'),'items/overflow'),{...item,date:9007199254740991}));
   await assertFails(setDoc(doc(db('finder'),'items/negative'),{...item,createdAt:-1}));
+});
+
+test('archiving preserves claim history, rejects new claims and blocks client deletes',async()=>{
+ const finder=db('finder');
+ await assertSucceeds(updateDoc(doc(finder,'items/wallet'),{archived:true,archivedAt:serverTimestamp()}));
+ await assertSucceeds(getDoc(doc(db('student'),'claims/claim')));
+ await assertFails(setDoc(doc(db('other'),'claims/new'),{...claim,claimantId:'other',claimantEmail:email('other')}));
+ await assertFails(deleteDoc(doc(finder,'items/wallet')));
+ await assertFails(deleteDoc(doc(db('student'),'claims/claim')));
+ await assertFails(updateDoc(doc(db('other'),'items/wallet'),{archived:false}));
+ await assertSucceeds(updateDoc(doc(finder,'items/wallet'),{archived:false}));
+});
+test('a moderated report cannot be restored by its owner',async()=>{
+ const moderator=env.authenticatedContext('moderator',{email:email('moderator'),email_verified:true,moderator:true}).firestore();
+ await assertSucceeds(updateDoc(doc(moderator,'items/wallet'),{archived:true,moderated:true}));
+ await assertFails(updateDoc(doc(db('finder'),'items/wallet'),{archived:false,moderated:false}));
+});
+test('activity receipts are private and cannot change another user’s inbox',async()=>{
+ await assertSucceeds(setDoc(doc(db('student'),'users/student/activityReads/message-claim'),{version:'message-id',seenAt:serverTimestamp()}));
+ await assertFails(getDoc(doc(db('finder'),'users/student/activityReads/message-claim')));
+ await assertFails(setDoc(doc(db('finder'),'users/student/activityReads/message-claim'),{version:'forged',seenAt:serverTimestamp()}));
+});
+test('approved staff can use any verified email; chosen roles grant no access',async()=>{
+ const staff=env.authenticatedContext('employee',{email:'employee@example.org',email_verified:true,staff:true}).firestore();
+ await assertSucceeds(getDoc(doc(staff,'items/wallet')));
+ await assertSucceeds(setDoc(doc(staff,'items/employee'),{...item,ownerId:'employee'}));
+ const unapproved=env.authenticatedContext('employee',{email:'employee@example.org',email_verified:true}).firestore();
+ await assertFails(getDoc(doc(unapproved,'items/wallet')));
+ await assertFails(setDoc(doc(unapproved,'users/employee'),{name:'Employee',email:'employee@example.org',role:'staff'}));
+ const unverified=env.authenticatedContext('employee',{email:'employee@example.org',email_verified:false,staff:true}).firestore();
+ await assertFails(getDoc(doc(unverified,'items/wallet')));
+});
+test('conversation lists are scoped and message metadata cannot be forged',async()=>{
+ const student=db('student');
+ await setDoc(doc(student,'conversations/claim'),{ownerId:'finder',claimantId:'student',itemId:'wallet',itemTitle:'Wallet',createdAt:serverTimestamp()});
+ await assertSucceeds(getDocs(query(collection(student,'conversations'),where('claimantId','==','student'))));
+ await assertFails(getDocs(collection(db('other'),'conversations')));
+ await assertFails(updateDoc(doc(student,'conversations/claim'),{lastMessageId:'fake',lastSenderId:'student',lastMessageAt:serverTimestamp()}));
+ await assertFails(setDoc(doc(student,'conversations/claim/messages/alone'),{senderId:'student',text:'No metadata',sentAt:serverTimestamp()}));
+ const batch=writeBatch(student);
+ batch.set(doc(student,'conversations/claim/messages/atomic'),{senderId:'student',text:'An actual message',sentAt:serverTimestamp()});
+ batch.update(doc(student,'conversations/claim'),{lastMessageId:'atomic',lastSenderId:'student',lastMessageAt:serverTimestamp()});
+ await assertSucceeds(batch.commit());
+ await assertFails(updateDoc(doc(student,'conversations/claim'),{lastMessageId:'atomic',lastSenderId:'student',lastMessageAt:serverTimestamp()}));
 });

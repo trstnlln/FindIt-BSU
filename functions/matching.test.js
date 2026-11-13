@@ -10,3 +10,5 @@ test('saved searches require every keyword plus selected filters',()=>{assert.ok
 test('saved searches do not alert on closed reports',()=>assert.ok(!matchesSearch({query:'calculator'},{...found,status:'returned'})));
 
 test('dates support legacy Firestore timestamps without treating missing dates as today',()=>{assert.equal(timestampMillis({toMillis:()=>123}),123);assert.ok(Number.isNaN(timestampMillis(null)));assert.equal(timestampMillis('2026-01-01T00:00:00.000Z'),Date.UTC(2026,0,1));assert.equal(matchScore({...lost,date:null},{...found,date:null}),80);});
+
+test('archived reports do not produce matches or search alerts',()=>{assert.equal(matchScore(lost,{...found,archived:true}),0);assert.ok(!matchesSearch({query:'calculator'},{...found,archived:true}));});

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'backend_features.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -51,6 +53,11 @@ class DeviceAlerts {
   }
 
   static Future<void> enable() async {
+    if (!BackendFeatures.cloudAlerts) {
+      throw StateError(
+        'Device delivery has not been configured. Use live activity in the app.',
+      );
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || !user.emailVerified) {
       throw StateError('Verify your account first.');
@@ -76,6 +83,7 @@ class DeviceAlerts {
 
   /// Restore an existing opt-in without showing another permission prompt.
   static Future<void> restore() async {
+    if (!BackendFeatures.cloudAlerts) return;
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (!_supported ||

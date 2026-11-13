@@ -1,5 +1,7 @@
 # Spartan red and white release
 
+For the current free-plan workflow, safe archiving, approved staff accounts, coordinated app/rules deployment and real-phone checks, see [Spark and staff setup](spark-and-staff-setup.md).
+
 This update implements the recovery workflow in priority order:
 
 | Priority | Capability | Activation |
@@ -9,7 +11,8 @@ This update implements the recovery workflow in priority order:
 | 1 | Claim review → approval → pickup readiness → returned, with a protected handover transaction | Deploy the updated Firestore rules |
 | 1 | Editable reports, closing recovered reports, public-field drafts, photo format/size checks and upload progress | App code; configure the Cloudinary preset limits below |
 | 2 | Private claimant/reporter messaging and suspicious-report handling | Deploy rules; assign authorized campus moderators |
-| 2 | Match alerts, saved-search alerts/results, claim and message alerts, old-report reminders | Deploy Functions and indexes; scheduled/cloud services need Firebase billing |
+| 2 | Live claim/message updates and private read states | Updated app and Firestore rules; works on Spark |
+| 2 | Optional server match/search alerts and reminders | Functions and a billing-enabled plan; opt into the cloud-enabled build |
 | 2 | Campus pickup office hours and instructions | Authorized moderators publish confirmed details in Profile → Campus pickup offices |
 | 3 | Opt-in device notifications, token refresh and sign-out cleanup | FCM/APNs/VAPID platform configuration |
 | 3 | Native release crash reporting and automated app/security checks | Enable Crashlytics; GitHub Actions runs on pushes and pull requests |
@@ -52,8 +55,7 @@ open at least 14 days, at most once per report per week. Alerts use deterministi
 IDs to tolerate event retries. Match alerts exclude closed reports and reports
 owned by the same person. They are suggestions, never ownership decisions.
 
-Notifications are stored privately under `users/{uid}/notifications`. The app's
-inbox works independently of device permission. Push messages deliberately contain
+Optional server notifications are stored privately under `users/{uid}/notifications`. The default app inbox derives live activity from participant-authorized claims and conversations, with private read states under `users/{uid}/activityReads`. Push messages deliberately contain
 only a generic update; private proof, message text and cash details are omitted
 from lock-screen notifications. At-least-once event delivery can still produce
 an occasional repeated push. Functions clean up private subcollections and claim
@@ -109,8 +111,7 @@ preview/upload, sends a matching MIME type, tracks sent bytes, and uses timeouts
 Client checks do not replace the server preset restrictions. Review preset abuse
 protection in the Cloudinary dashboard; never put an API secret in Flutter.
 
-Deleting a report removes Firestore private details/conversations through the
-backend. Removing the corresponding Cloudinary asset requires a separate trusted
+The app now archives reports and retains linked private details and conversations; it does not delete the parent. Administrator purges need a trusted retention process. Removing the corresponding Cloudinary asset requires a separate trusted
 media-retention integration with Cloudinary administrative credentials; unsigned
 uploads do not grant the app delete permission.
 

@@ -11,7 +11,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/item_model.dart';
-import '../providers/auth_provider.dart';
+import 'account_access.dart';
 
 /// Handles all Firestore CRUD operations for the `items` collection.
 class ItemService {
@@ -102,7 +102,7 @@ class ItemService {
     if (user == null ||
         !user.emailVerified ||
         user.uid != ownerId ||
-        !AuthProvider.isBatStateUEmail(user.email ?? '')) {
+        !await AccountAccess.isMember(user)) {
       throw Exception(
         'Sign in with your university account to report an item.',
       );
@@ -167,6 +167,7 @@ class ItemService {
           )
           .toList();
       // Sort client-side by createdAt descending to avoid composite index requirements in Firestore
+      items.removeWhere((item) => item.archived);
       items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return items;
     });
@@ -331,9 +332,17 @@ class ItemService {
     });
   }
 
-  /// Deletes an item report from Firestore.
-  /// Allowed only for the item owner by Firestore security rules.
-  Future<void> deleteItem(String itemId) async {
-    await _itemsRef.doc(itemId).delete();
+  /// Retain the parent report so its private proof, claims and messages stay linked.
+  Future<void> archiveItem(
+    String itemId, {
+    bool archived = true,
+    bool moderation = false,
+  }) async {
+    await _itemsRef.doc(itemId).update({
+      'archived': archived,
+      if (moderation) 'moderated': true,
+      'archivedAt': archived ? FieldValue.serverTimestamp() : null,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 }

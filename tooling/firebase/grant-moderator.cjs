@@ -7,7 +7,7 @@ if(!uid||!projectId||!['grant','revoke'].includes(action)) throw Error('Usage: n
 initializeApp({projectId});
 (async()=>{
  const auth=getAuth();const user=await auth.getUser(uid);
- if(action==='grant'&&(!user.emailVerified||!user.email?.endsWith('@g.batstate-u.edu.ph'))) throw Error('Moderator must have a verified university account.');
+ if(action==='grant'&&(!user.emailVerified||(!user.email?.endsWith('@g.batstate-u.edu.ph') && user.customClaims?.staff !== true))) throw Error('Moderator must have a verified university or approved staff account.');
  await auth.setCustomUserClaims(uid,{...user.customClaims,moderator:action==='grant'});
  console.log('Moderator permission updated. The user must sign out and sign back in.');
 })().catch(error=>{console.error(error.message);process.exit(1)});

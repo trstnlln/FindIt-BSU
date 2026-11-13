@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/activity_provider.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/claim_model.dart';
@@ -17,6 +21,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   late Future<void> _ready;
   late final _messages = _service.messages(widget.claim.id);
   bool _sending = false;
+  String? _readMessage;
   @override
   void initState() {
     super.initState();
@@ -106,6 +111,22 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     final docs = snapshot.data!.docs;
+                    if (docs.isNotEmpty &&
+                        docs.first.data()['senderId'] !=
+                            FirebaseAuth.instance.currentUser?.uid &&
+                        _readMessage != docs.first.id) {
+                      _readMessage = docs.first.id;
+                      WidgetsBinding.instance.addPostFrameCallback((_) async {
+                        if (!mounted) return;
+                        try {
+                          await context
+                              .read<ActivityProvider>()
+                              .markMessageRead(widget.claim.id, docs.first.id);
+                        } catch (_) {
+                          if (mounted) _readMessage = null;
+                        }
+                      });
+                    }
                     if (docs.isEmpty) {
                       return const Center(
                         child: Text(
